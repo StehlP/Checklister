@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cockpit Checklist Trainer</title>
+<style>
+:root{
+  --bg:#0b0f17;--panel:#121826;--panel2:#0e1320;--line:#1f2a3d;
+  --txt:#dfe6f0;--txt2:#8a97ad;--txt3:#5b687e;
+  --cyan:#36c5e0;--green:#3ad17a;--amber:#f0a020;--red:#ef5350;--blue:#4a9eff;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Roboto Mono",monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--txt);font-family:var(--sans);font-size:14px;overflow:hidden}
+button{font-family:inherit;font-size:13px;color:var(--txt);background:#1a2336;border:1px solid var(--line);border-radius:6px;padding:7px 12px;cursor:pointer;transition:.12s}
+button:hover{background:#22304a;border-color:#324663}
+button:active{transform:scale(.97)}
+button.primary{background:#13405c;border-color:#1d5e87;color:#dff3ff}
+button.primary:hover{background:#185578}
+button.danger{color:#ffb3b1}button.danger:hover{background:#3a1c1c;border-color:#5e2c2c}
+button.sm{padding:4px 8px;font-size:12px}
+button:disabled{opacity:.4;cursor:not-allowed}
+input,select{font-family:inherit;font-size:13px;color:var(--txt);background:#0e1320;border:1px solid var(--line);border-radius:6px;padding:7px 9px;width:100%}
+input:focus,select:focus{outline:none;border-color:var(--cyan)}
+input[type=range]{padding:0}
+label{font-size:11px;color:var(--txt2);letter-spacing:.04em;text-transform:uppercase;display:block;margin-bottom:4px}
+.row{display:flex;gap:8px;align-items:center}
+.muted{color:var(--txt2)}.mono{font-family:var(--mono)}
+
+#top{height:52px;display:flex;align-items:center;gap:10px;padding:0 16px;overflow-x:auto;background:var(--panel);border-bottom:1px solid var(--line)}
+#top .logo{font-family:var(--mono);font-weight:600;letter-spacing:.06em;color:var(--cyan);font-size:15px}
+#top .logo span{color:var(--txt3);font-weight:400}
+.tabs{display:flex;gap:4px}
+.tab{padding:7px 14px;border-radius:6px;cursor:pointer;color:var(--txt2);font-size:13px;border:1px solid transparent}
+.tab.active{color:var(--txt);border-color:var(--line);background:#0e1320}
+.tab:hover{color:var(--txt)}
+#top .spacer{flex:1}
+#top button,#top .tab{white-space:nowrap;flex-shrink:0}
+#top .proj-name{flex:0 1 200px;min-width:80px}
+@media (max-width:1250px){#top .proj-label{display:none}#top{gap:6px;padding:0 10px}.tab{padding:7px 9px}#top .logo{font-size:13px}}
+.proj-name{background:transparent;border:1px solid transparent;width:auto;min-width:140px;color:var(--txt2);font-size:13px}
+.proj-name:hover,.proj-name:focus{border-color:var(--line);color:var(--txt)}
+#views{height:calc(100% - 52px)}
+.view{height:100%;display:none}.view.active{display:flex}
+
+.stage-wrap{flex:1;position:relative;overflow:hidden;background:#070a11}
+.no-img{position:absolute;inset:0;color:var(--txt3);text-align:center;display:flex;flex-direction:column;gap:12px;align-items:center;justify-content:center}
+.no-img .ico{font-size:54px;opacity:.5}
+.zoomtb{position:absolute;top:10px;left:10px;z-index:8;display:flex;gap:6px;background:rgba(12,18,30,.92);border:1px solid var(--line);border-radius:8px;padding:6px}
+.zoomtb .zlv{font-family:var(--mono);font-size:12px;color:var(--txt2);min-width:46px;text-align:center;align-self:center}
+.zoom{position:absolute;top:0;left:0;transform-origin:0 0;cursor:grab}
+.zoom:active{cursor:grabbing}
+.zoom img{display:block;width:100%;user-select:none;-webkit-user-drag:none}
+.zones-ov{position:absolute;inset:0}
+.zone{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:2px solid var(--cyan);background:rgba(54,197,224,.10);cursor:grab;box-sizing:border-box}
+.zone:active{cursor:grabbing}
+.zone .zlabel{position:absolute;left:50%;top:-6px;transform:translate(-50%,-100%);font-family:var(--mono);font-weight:600;color:#eaf7ff;white-space:nowrap;background:#0a1422;border:1px solid var(--cyan);padding:2px 7px;border-radius:5px;pointer-events:none;line-height:1.2}
+.zone.selected{border-color:var(--amber);background:rgba(240,160,32,.14)}
+.zone.selected .zlabel{border-color:var(--amber);color:#ffe9c2}
+/* poignées de redimensionnement de la zone sélectionnée (taille recalculée selon le zoom dans sizeZones) */
+.zh{position:absolute;background:#fff;border:solid var(--amber);border-radius:2px;box-sizing:border-box;z-index:3;touch-action:none}
+.zh:hover{background:var(--amber)}
+/* édition d'une étape de checklist */
+.step.editing{border-color:var(--cyan);background:#0d2330;flex-wrap:wrap}
+.step.editing select,.step.editing input{width:auto;padding:4px 7px;font-size:12px}
+.step.editing .es-zone{max-width:220px}
+.step.editing .es-act{flex:1 1 180px;min-width:140px}
+/* Noms masqués : visibles seulement au survol, sur la zone sélectionnée ou survolée dans la liste */
+.zone .zlabel{opacity:0;transition:opacity .1s}
+.zone:hover .zlabel,.zone.selected .zlabel,.zone.hover .zlabel{opacity:1!important}
+/* L'empilement des zones est fixé par taille (stackZones) : on ne remonte pas la zone survolée,
+   sinon une grande zone (ex. Engine monitor) masquerait les petites zones qu'elle contient */
+.tr-zones-ov .zone.hover{z-index:100000!important}
+.zone.hover{border-color:var(--amber);opacity:1!important}
+
+.side{width:320px;background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden}
+.side.left{border-left:none;border-right:1px solid var(--line);width:288px}
+.side h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--txt2);padding:14px 16px 8px}
+.side-body{flex:1;overflow-y:auto;padding:0 16px 16px}
+.side-foot{padding:12px 16px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.list-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;margin-bottom:6px;cursor:pointer;background:var(--panel2)}
+.list-item:hover{border-color:#324663}
+.list-item.active{border-color:var(--cyan);background:#0d2330}
+.list-item .nm{flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list-item .ct{font-size:11px;color:var(--txt3);font-family:var(--mono)}
+.hint{font-size:11px;color:var(--txt3);line-height:1.5;margin-top:6px}
+.divider{height:1px;background:var(--line);margin:12px 0}
+.sel-box{background:var(--panel2);border:1px solid var(--amber);border-radius:8px;padding:10px;margin-bottom:8px}
+.sel-box .t{font-size:12px;color:var(--amber);font-family:var(--mono);margin-bottom:8px}
+
+.step{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;margin-bottom:5px;background:var(--panel2)}
+.step.dragging{opacity:.35;border-style:dashed}
+.step.drag-over{border-top:2px solid var(--cyan);margin-top:-1px}
+.list-item.drag-over{border-top:2px solid var(--cyan);margin-top:-1px}
+.step .drag-handle{color:var(--txt3);cursor:grab;font-size:13px;padding:0 2px;flex-shrink:0;user-select:none}
+.step-drop-end{height:4px;border-radius:0;margin-top:0;border-top:2px solid transparent;transition:.12s}
+.step-drop-end.drag-over{border-top-color:var(--cyan)}
+.step .idx{font-family:var(--mono);font-size:11px;color:var(--txt3);min-width:16px;flex-shrink:0}
+.step .ztag{font-size:11px;font-family:var(--mono);padding:2px 7px;border-radius:4px;white-space:nowrap;flex-shrink:0;max-width:140px;overflow:hidden;text-overflow:ellipsis}
+.step .ztag.ztag-zone{background:#0d2330;color:var(--cyan)}
+.step .ztag.info{background:#2a2418;color:var(--amber)}
+.step .act{flex:1 1 auto;font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.step .ctrls{display:flex;gap:3px;flex-shrink:0}
+.field{margin-bottom:10px}
+
+.train-hud{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;gap:16px;padding:12px 18px;background:var(--panel);border-bottom:1px solid var(--line);z-index:6}
+.hud-step{font-family:var(--mono);font-size:11px;color:var(--txt2);margin-bottom:3px}
+.hud-prompt{font-size:20px;font-weight:500}.hud-prompt.info{color:var(--amber)}
+.hud-stat{font-family:var(--mono);font-size:13px;color:var(--txt2)}.hud-stat b{color:var(--txt)}
+.ripple{position:absolute;transform:translate(-50%,-50%);border-radius:50%;pointer-events:none;animation:rip .6s ease-out forwards;z-index:7}
+.ripple.ok{border:3px solid var(--green)}.ripple.bad{border:3px solid var(--red)}
+@keyframes rip{0%{width:10px;height:10px;opacity:1}100%{width:80px;height:80px;opacity:0}}
+.train-pulse{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:4px dashed var(--red);pointer-events:none;animation:pls 1.2s infinite}
+@keyframes pls{0%,100%{opacity:.3}50%{opacity:.9}}
+.overlay{position:absolute;inset:0;background:rgba(7,10,17,.9);display:flex;align-items:center;justify-content:center;z-index:10}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:28px 32px;text-align:center;min-width:300px}
+.card h2{font-size:18px;font-weight:500;margin-bottom:16px}
+.bigstat{display:flex;gap:28px;justify-content:center;margin:18px 0}
+.bigstat .v{font-family:var(--mono);font-size:30px;color:var(--cyan)}
+.bigstat .l{font-size:11px;color:var(--txt2);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+.toggle{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--txt2);cursor:pointer}.toggle input{width:auto}
+.train-info-bar{position:absolute;bottom:0;left:0;right:0;padding:14px 16px;background:linear-gradient(0deg,rgba(7,10,17,.96),rgba(7,10,17,0));display:flex;align-items:center;justify-content:center;gap:14px;z-index:6}
+.tr-prog{width:230px;background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden}
+.tr-prog h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--txt2);padding:14px 16px 8px}
+.tr-prog .body{flex:1;overflow-y:auto;padding:0 16px 16px}
+.prog-row{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px;align-items:center}
+.prog-row:last-child{border-bottom:none}
+.prog-row .pi{width:16px;height:16px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;border:1.5px solid var(--line)}
+.prog-row.done .pi{border-color:var(--green);color:var(--green);background:rgba(58,209,122,.1)}
+.prog-row.cur .pi{border-color:var(--cyan);background:rgba(54,197,224,.12)}
+.prog-row.visu-hover .pi{border-color:var(--amber)!important;color:var(--amber)!important;background:rgba(240,160,32,.12)!important}
+.prog-row .num{font-family:var(--mono);font-size:11px;color:var(--txt3);min-width:18px}
+.prog-row .pt{flex:1;color:var(--txt3);letter-spacing:.12em}
+.prog-row.cur .pt{color:var(--cyan)}
+
+#fileIn,#imgIn{display:none}
+.cl-dot{width:11px;height:11px;border-radius:3px;flex-shrink:0;cursor:default;border:1.5px solid rgba(255,255,255,.15);transition:.12s;margin-right:4px}
+.cl-dot.editable{cursor:pointer}
+.cl-dot.editable:hover{transform:scale(1.25);border-color:rgba(255,255,255,.4)}
+#colorPop{position:fixed;z-index:30;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;display:none;flex-direction:column;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.5);min-width:184px}
+.color-presets{display:flex;gap:6px}
+.color-pre{width:24px;height:24px;border-radius:5px;cursor:pointer;border:2px solid transparent;flex-shrink:0;transition:.12s}
+.color-pre:hover{border-color:rgba(255,255,255,.6);transform:scale(1.1)}
+#trainFlash{position:absolute;top:52px;left:50%;transform:translateX(-50%);background:rgba(11,15,23,.95);border:1px solid var(--green);border-radius:8px;padding:8px 18px;color:var(--green);font-size:13px;font-weight:500;pointer-events:none;opacity:0;transition:opacity .2s;z-index:9;max-width:75%;text-align:center;white-space:nowrap}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#16203a;border:1px solid var(--cyan);color:var(--txt);padding:10px 18px;border-radius:8px;font-size:13px;z-index:50;opacity:0;transition:.3s}
+.toast.show{opacity:1}
+/* le toast invisible ne doit pas intercepter les clics (il est posé en bas au centre) */
+.toast{pointer-events:none}
+
+/* ===== Guide de démarrage ===== */
+.welcome{position:absolute;inset:0;overflow:auto;display:flex;justify-content:center;align-items:flex-start;padding:36px 24px}
+.welcome-in{max-width:860px;width:100%}
+.welcome h1{font-size:22px;font-weight:600;margin-bottom:6px}
+.welcome .lead{color:var(--txt2);font-size:14px;line-height:1.55;margin-bottom:22px}
+.wcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.wcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px}
+.wcard.reco{border-color:#1d5e87}
+.wcard h2{font-size:15px;font-weight:600;margin-bottom:4px}
+.wcard .sub{font-size:12px;color:var(--txt2);margin-bottom:14px;line-height:1.5}
+.wtag{display:inline-block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--cyan);border:1px solid #1d5e87;border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:2px}
+.wstep{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)}
+.wstep:first-of-type{border-top:none}
+.wnum{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:12px;color:var(--txt2);flex-shrink:0}
+.wstep.done .wnum{border-color:var(--green);color:var(--green);background:rgba(58,209,122,.1)}
+.wstep.next .wnum{border-color:var(--cyan);color:var(--cyan);background:rgba(54,197,224,.12)}
+.wstep .wt{font-size:13px;line-height:1.5;flex:1}
+.wstep .wt b{color:var(--txt)}
+.wstep .wt .muted{font-size:12px}
+.wstep button{margin-top:8px}
+.wnote{margin-top:18px;font-size:12px;color:var(--txt2);line-height:1.55;background:var(--panel2);border:1px dashed var(--line);border-radius:8px;padding:10px 14px}
+.guide-banner{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:8;background:rgba(12,18,30,.95);border:1px solid var(--cyan);border-radius:8px;padding:8px 14px;font-size:13px;display:flex;gap:10px;align-items:center;max-width:70%}
+.guide-banner .x{background:none;border:none;color:var(--txt3);padding:0 2px;font-size:15px}
+.empty-guide{display:flex;flex-direction:column;gap:12px;align-items:center}
+/* Mot de passe / profils en ligne */
+.pw-overlay{position:fixed;z-index:60}
+.pw-card{display:flex;flex-direction:column;gap:10px;min-width:320px;text-align:left}
+.pw-card h2{margin-bottom:4px}
+.pw-err{color:var(--red);font-size:12px;min-height:16px}
+.online-list{display:flex;flex-direction:column;gap:6px}
+.online-item{display:flex;align-items:center;gap:10px;text-align:left;padding:10px 12px}
+.online-item .nm{flex:1;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.online-card{min-width:380px;max-width:560px;max-height:85vh;overflow-y:auto}
+.online-msg{font-size:13px;line-height:1.5;color:var(--txt);background:var(--panel2);border:1px dashed var(--line);border-radius:8px;padding:10px 12px;margin:4px 0}
+.online-h{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--txt2);margin-top:6px}
+body.dragging-file::after{content:"Dépose ici ton profil JSON ou l'image du cockpit";position:fixed;inset:12px;border:2px dashed var(--cyan);border-radius:14px;background:rgba(7,10,17,.85);display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--cyan);z-index:100;pointer-events:none}
+</style>
+</head>
+<body>
+
+<div id="top">
+  <div class="logo">CHECK<span>LISTER</span></div>
+  <div class="tabs">
+    <div class="tab active" data-view="cockpit">✈ Cockpit</div>
+    <div class="tab" data-view="checklists">📋 Checklists</div>
+    <div class="tab" data-view="visu">🗺 Visualiser</div>
+    <div class="tab" data-view="train">🎯 Entraînement</div>
+  </div>
+  <div class="spacer"></div>
+  <span class="proj-label" style="font-size:12px;color:var(--txt2)">Profil :</span>
+  <input class="proj-name" id="projName" value="Mon profil" title="Nom du profil">
+  <button class="sm" id="btnNew" title="Effacer le profil et l'image en cours">＋ Nouveau</button>
+  <button class="sm" id="btnImport" title="Importer un profil JSON depuis l'ordinateur (chiffré ou non)">📂 Importer</button>
+  <button class="sm" id="btnOnline" title="Profils, checklists et images hébergés à côté de l'app">☁ Fichiers en ligne</button>
+  <button class="sm primary" id="btnExport" title="Exporter le profil en JSON, avec ou sans mot de passe">💾 Exporter</button>
+  <input type="file" id="fileIn" accept=".json">
+  <input type="file" id="fileClIn" accept=".json" style="display:none">
+</div>
+
+<div id="views">
+  <!-- COCKPIT -->
+  <div class="view active" id="view-cockpit">
+    <div class="side left">
+      <h3>Éditer le cockpit</h3><span id="zoneCount" style="display:none"></span>
+      <div class="side-body" id="zoneList"></div>
+      <div class="side-foot">
+        <div class="row"><button class="sm" id="btnUndo" disabled title="Annuler la dernière modification des zones (Ctrl+Z)" style="flex:1">↶ Annuler</button></div>
+        <div id="selZoneBox"></div>
+        <div class="field"><label>Taille par défaut (nouvelles zones)</label>
+          <div class="row"><input type="range" id="radius" min="0.375" max="12" step="0.125" value="4.5"><span class="mono" id="radiusVal" style="min-width:40px">4.5%</span></div>
+        </div>
+        <button id="btnLoadImg">Charger / changer l'image</button>
+        <input type="file" id="imgIn" accept="image/*">
+        <p class="hint">Clic = poser une zone. Molette = zoom. Glisser le fond = déplacer la vue. Glisser une zone = la déplacer. Poignées de la zone sélectionnée = redimensionner. Double-clic = renommer. Ctrl+Z = annuler.</p>
+      </div>
+    </div>
+    <div class="stage-wrap" id="cockpitStage"></div>
+  </div>
+
+  <!-- CHECKLISTS -->
+  <div class="view" id="view-checklists">
+    <div class="side left">
+      <h3>Éditer une checklist (<span id="clCount">0</span>)</h3>
+      <div class="side-body" id="clList"></div>
+      <div class="side-foot"><button class="primary" id="btnNewCl">+ Nouvelle checklist</button><button class="sm" id="btnImportCl">↑ Importer une checklist</button></div>
+    </div>
+    <div class="stage-wrap" style="overflow:auto">
+      <div style="max-width:760px;margin:0 auto;padding:24px 28px 120px">
+        <div class="muted" id="clEmpty" style="text-align:center;margin-top:80px">Sélectionne ou crée une checklist à gauche.</div>
+        <div id="clContent" style="display:none">
+          <div class="row" style="margin-bottom:18px">
+            <span id="clColorDot" class="cl-dot editable" style="width:16px;height:16px;border-radius:4px;flex-shrink:0"></span>
+            <input id="clTitle" style="font-size:16px;font-weight:500" placeholder="Nom de la checklist">
+            <button class="sm primary" id="btnExportCl" style="white-space:nowrap">↓ Exporter</button>
+            <button class="danger sm" id="btnDelCl">Supprimer</button>
+          </div>
+          <div id="stepList"></div>
+          <div class="divider"></div>
+          <h3 style="font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--txt2);padding-bottom:8px">Ajouter une étape</h3>
+          <div class="row" style="align-items:flex-end;gap:10px">
+            <div style="flex:1"><label>Type</label><select id="addType"><option value="zone">Zone à cliquer</option><option value="info">Info / callout</option></select></div>
+            <div style="flex:1" id="addZoneWrap"><label>Zone</label><select id="addZone"></select></div>
+            <div style="flex:2"><label>Action / texte</label><input id="addAct" placeholder="ex : CUT OFF, FULL RICH, 7700…"></div>
+            <button class="primary" id="btnAddStep">Ajouter</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VISUALISER -->
+  <div class="view" id="view-visu">
+    <div class="side left">
+      <h3>Visualiser une checklist</h3>
+      <div class="side-body" id="visuList"></div>
+      <div class="side-foot">
+        <label class="toggle"><input type="checkbox" id="visuLabels" checked> Libellés au survol</label>
+        <label class="toggle"><input type="checkbox" id="visuGradient" checked> Dégradé de couleur</label>
+        <p class="hint">Le flow affiche les zones de la checklist dans l'ordre, reliées par des traits.</p>
+      </div>
+    </div>
+    <div class="stage-wrap" id="visuStage"></div>
+    <div class="tr-prog" id="visuProg" style="display:none">
+      <h3>Progression</h3>
+      <div class="body" id="visuProgBody"></div>
+    </div>
+  </div>
+
+  <!-- TRAINING -->
+  <div class="view" id="view-train">
+    <div class="side left">
+      <h3>S'entraîner sur une checklist</h3>
+      <div class="side-body" id="trainList"></div>
+      <div class="side-foot">
+        <label class="toggle"><input type="checkbox" id="optProg" checked> Afficher le déroulé</label>
+        <label class="toggle"><input type="checkbox" id="optFlash" checked> Afficher la confirmation</label>
+        <label class="toggle"><input type="checkbox" id="optShowZones"> Afficher les zones</label>
+        <label class="toggle"><input type="checkbox" id="optHint"> Indice après 2 erreurs</label>
+        <label class="toggle"><input type="checkbox" id="optTimer" checked> Chronomètre</label>
+        <p class="hint">Clique sur la zone correspondante à l'item. Si la zone est hors image ou l'item est une info / callout, appuies sur Espace. Le chrono démarre au 1er clic.</p>
+      </div>
+    </div>
+    <div class="stage-wrap" id="trainStage"></div>
+    <div class="tr-prog" id="trProg" style="display:none">
+      <h3>Déroulé <span id="trainTimer" style="font-family:var(--mono);font-size:11px;color:var(--txt2);float:right;margin-top:1px"></span></h3>
+      <div id="trainClTitle" style="font-size:12px;color:var(--cyan);padding:0 16px 8px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+      <div class="body" id="progBody"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+let DB={name:"Mon profil",image:null,radius:4.5,zones:[],checklists:[]};
+let selZone=null,curCl=null;
+const uid=()=>Math.random().toString(36).slice(2,9);
+const $=s=>document.querySelector(s);
+const $$=s=>[...document.querySelectorAll(s)];
+const clamp=(a,b,v)=>Math.max(a,Math.min(b,v));
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),1800);}
+
+const LS="cockpit_trainer_db";
+const LS_IMG="cockpit_trainer_image";
+function save(){try{const d={...DB,image:undefined};delete d.image;localStorage.setItem(LS,JSON.stringify(d));}catch(e){}}
+function saveImage(){try{if(DB.image)localStorage.setItem(LS_IMG,DB.image);else localStorage.removeItem(LS_IMG);}catch(e){}}
+function load(){
+  try{const s=localStorage.getItem(LS);if(s){DB=JSON.parse(s);}}catch(e){}
+  try{const img=localStorage.getItem(LS_IMG);if(img)DB.image=img;}catch(e){}
+  return!!DB.image||DB.zones.length>0;
+}
+
+/* ===== CHIFFREMENT DES PROFILS (AES-GCM 256, clé dérivée du mot de passe par PBKDF2-SHA256) =====
+   Fichier chiffré : {format,v,name,imageFile,kdf,iter,salt,iv,data} (base64) ; name et imageFile restent lisibles. */
+const ENC_FORMAT="checklister-encrypted",ENC_ITER=600000;
+function b64enc(buf){const u=new Uint8Array(buf);let s="";for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s);}
+function b64dec(str){const s=atob(str),u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u;}
+async function deriveKey(password,salt,iter){
+  const base=await crypto.subtle.importKey("raw",new TextEncoder().encode(password),"PBKDF2",false,["deriveKey"]);
+  return crypto.subtle.deriveKey({name:"PBKDF2",hash:"SHA-256",salt,iterations:iter},base,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
+}
+// name et imageFile restent lisibles (pour lister les profils en ligne et charger l'image) ; zones et checklists sont chiffrées
+async function encryptProfile(obj,password){
+  const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12));
+  const key=await deriveKey(password,salt,ENC_ITER);
+  const data=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,new TextEncoder().encode(JSON.stringify(obj)));
+  const enc={format:ENC_FORMAT,v:1,name:obj.name||"",kdf:"PBKDF2-SHA256",iter:ENC_ITER,salt:b64enc(salt),iv:b64enc(iv),data:b64enc(data)};
+  if(obj.imageFile)enc.imageFile=obj.imageFile;
+  return enc;
+}
+// Lève une erreur "BAD_PASSWORD" si le mot de passe est faux (l'authentification AES-GCM échoue)
+async function decryptProfile(enc,password){
+  const key=await deriveKey(password,b64dec(enc.salt),enc.iter||ENC_ITER);
+  let plain;try{plain=await crypto.subtle.decrypt({name:"AES-GCM",iv:b64dec(enc.iv)},key,b64dec(enc.data));}catch(e){throw new Error("BAD_PASSWORD");}
+  return JSON.parse(new TextDecoder().decode(plain));
+}
+function cryptoAvailable(){return !!(window.crypto&&crypto.subtle);}
+
+// Fenêtre de saisie du mot de passe.
+//  confirm  : double saisie (export)
+//  optional : champs vides autorisés -> renvoie "" (export sans mot de passe)
+//  renvoie null si annulé
+function askPassword(title,{confirm=false,optional=false,error="",hint="",okLabel="Valider"}={}){
+  return new Promise(res=>{
+    const ov=document.createElement("div");ov.className="overlay pw-overlay";
+    ov.innerHTML=`<form class="card pw-card"><h2>🔒 ${esc(title)}</h2>
+      ${hint?`<p class="hint" style="margin:0">${hint}</p>`:""}
+      <input type="password" id="pw1" placeholder="${optional?"Mot de passe (facultatif)":"Mot de passe"}" autocomplete="${confirm?"new-password":"current-password"}">
+      ${confirm?'<input type="password" id="pw2" placeholder="Confirmer le mot de passe" autocomplete="new-password">':""}
+      <p class="pw-err">${esc(error)}</p>
+      <div class="row" style="justify-content:center;gap:8px"><button type="button" id="pwCancel">Annuler</button><button type="submit" class="primary">${esc(okLabel)}</button></div></form>`;
+    document.body.appendChild(ov);const p1=ov.querySelector("#pw1"),p2=ov.querySelector("#pw2"),err=ov.querySelector(".pw-err");p1.focus();
+    const done=v=>{ov.remove();res(v);};
+    ov.querySelector("#pwCancel").onclick=()=>done(null);
+    ov.addEventListener("keydown",e=>{if(e.key==="Escape")done(null);});
+    ov.querySelector("form").onsubmit=e=>{e.preventDefault();
+      if(!p1.value&&!(p2&&p2.value)){if(optional)return done("");err.textContent="Saisis un mot de passe.";return;}
+      if(confirm&&p1.value!==p2.value){err.textContent="Les deux mots de passe sont différents.";return;}
+      done(p1.value);};
+  });
+}
+
+async function saveFile(text,fname,okMsg){
+  if(window.showSaveFilePicker){try{const fh=await window.showSaveFilePicker({suggestedName:fname,types:[{description:"JSON",accept:{"application/json":[".json"]}}]});const w=await fh.createWritable();await w.write(text);await w.close();toast(okMsg);return;}catch(e){if(e.name==="AbortError")return;}}
+  const b=new Blob([text],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=fname;a.click();toast(okMsg);
+}
+function exportObj(){DB.name=$("#projName").value||"cockpit";const exp={...DB};delete exp.image;return exp;}
+// Export avec ou sans mot de passe (champ vide = fichier en clair)
+async function doExport(){
+  const exp=exportObj();const fname=(DB.name||"cockpit").replace(/\s+/g,"_")+"_checklister.json";
+  const pw=await askPassword("Exporter le profil",{confirm:true,optional:true,okLabel:"Exporter",
+    hint:"Saisis un mot de passe pour chiffrer le fichier, ou laisse vide pour l'exporter sans mot de passe."});
+  if(pw==null)return;
+  if(pw===""){await saveFile(JSON.stringify(exp,null,1),fname,"Exporté ✓");return;}
+  if(!cryptoAvailable()){alert("Le chiffrement nécessite une page servie en https (GitHub Pages) ou localhost.");return;}
+  await saveFile(JSON.stringify(await encryptProfile(exp,pw)),fname,"Exporté chiffré 🔒 ✓");
+}
+$("#btnExport").onclick=doExport;
+$("#btnNew").onclick=()=>{if(!confirm("Créer un nouveau profil ?\nLe profil et l'image en cours seront effacés."))return;DB={name:"Mon profil",image:null,radius:4.5,zones:[],checklists:[]};try{localStorage.removeItem(LS);localStorage.removeItem(LS_IMG);}catch(e){}selZone=null;curCl=null;VS.clId=null;stopTrain();clearUndo();$("#projName").value="Mon profil";renderAll();toast("Nouveau profil ✓");};
+$("#btnImport").onclick=()=>$("#fileIn").click();
+
+async function parseJsonText(text){
+  try{return JSON.parse(text);}
+  catch(e1){
+    if(e1.message&&(e1.message.includes('recursion')||e1.message.includes('too deep')))return await new Response(text,{headers:{'Content-Type':'application/json'}}).json();
+    throw e1;
+  }
+}
+// Demande le mot de passe UNIQUEMENT si le fichier est chiffré (et le redemande tant qu'il est faux) ; null si annulé
+async function unlockIfEncrypted(parsed,label){
+  if(!parsed||parsed.format!==ENC_FORMAT)return parsed;
+  if(!cryptoAvailable()){alert("Ce profil est chiffré : ouvre l'app en https (GitHub Pages) ou via localhost pour le déchiffrer.");return null;}
+  let error="";
+  for(;;){
+    const pw=await askPassword(label||"Profil protégé",{error});if(pw==null)return null;
+    try{return await decryptProfile(parsed,pw);}
+    catch(e){if(e.message!=="BAD_PASSWORD")throw e;error="Mot de passe incorrect.";}
+  }
+}
+function applyProfile(parsed){
+  if(parsed.format==="checklist"){alert("Ce fichier est une checklist individuelle.\nUtilise «↑ Importer une checklist» dans l'onglet Checklists.");return false;}
+  // Migration : ancien format avec image embarquée
+  if(parsed.image){DB.image=parsed.image;saveImage();delete parsed.image;}
+  // Profil d'un autre cockpit : l'image en cours ne correspond plus
+  else if(parsed.imageFile&&parsed.imageFile!==DB.imageFile){DB.image=null;saveImage();}
+  DB={...DB,imageFile:undefined,...parsed};
+  DB.radius=DB.radius||4.5;DB.zones=DB.zones||[];DB.checklists=DB.checklists||[];
+  DB.zones.forEach(z=>{if(z.r==null)z.r=DB.radius;});
+  selZone=null;curCl=null;VS.clId=null;stopTrain();clearUndo();editKey=null;
+  $("#projName").value=DB.name||"cockpit";
+  save();renderAll();return true;
+}
+// Si le profil indique son image (imageFile) et que l'app est servie en http(s), on la récupère à côté de index.html
+async function fetchProfileImage(){
+  if(DB.image||!DB.imageFile||location.protocol==="file:")return false;
+  try{const r=await fetch(encodeURI(DB.imageFile));if(!r.ok)return false;loadImageFile(await r.blob(),DB.imageFile);return true;}catch(e){return false;}
+}
+async function importProfileFile(f){
+  try{
+    const parsed=await unlockIfEncrypted(await parseJsonText(await f.text()),"Profil protégé : "+f.name);
+    if(!parsed||!applyProfile(parsed))return;
+    await fetchProfileImage();
+    if(!DB.image){goTab("cockpit");toast("Profil importé ✓ — charge maintenant l'image du cockpit"+(DB.imageFile?" ("+DB.imageFile+")":""));}
+    else toast("Profil importé ✓");
+  }catch(err){alert("JSON invalide : "+err.message);}
+}
+$("#fileIn").onchange=e=>{const f=e.target.files[0];if(f)importProfileFile(f);e.target.value="";};
+
+/* ===== PROFILS EN LIGNE =====
+   Sur GitHub Pages, l'app liste elle-même les .json posés à côté de index.html (API GitHub du dépôt) :
+   aucun fichier d'index à maintenir. Ailleurs (fichier local, autre hébergeur), la liste est simplement vide. */
+let ONLINE=[],ONLINE_CL=[],ONLINE_IMG=[],ONLINE_MSG="Recherche des fichiers en ligne…";   // profils, checklists individuelles, images
+const IMG_RE=/\.(png|jpe?g|webp|gif|svg)$/i;
+function githubLocation(){
+  const host=location.hostname;if(!host.endsWith(".github.io"))return null;
+  const owner=host.slice(0,-".github.io".length);
+  const parts=location.pathname.split("/").filter(Boolean);
+  if(parts.length&&/\.[a-z0-9]+$/i.test(parts[parts.length-1]))parts.pop();   // index.html
+  // site de projet : owner.github.io/<repo>/…  —  site utilisateur : owner.github.io/…
+  return parts.length?{owner,repo:parts[0],dir:parts.slice(1).join("/")}:{owner,repo:host,dir:""};
+}
+async function loadOnlineProfiles(){
+  const gh=githubLocation();
+  if(!gh){ONLINE_MSG="Les fichiers en ligne sont disponibles quand l'app est ouverte depuis GitHub Pages (adresse en …github.io). Ici, l'app est ouverte en local : utilise «📂 Importer» ou le glisser-déposer.";return;}
+  try{
+    const r=await fetch(`https://api.github.com/repos/${gh.owner}/${gh.repo}/contents/${gh.dir}`);
+    if(!r.ok){ONLINE_MSG=r.status===403?"GitHub limite le nombre de requêtes : réessaie dans quelques minutes.":"Impossible de lister les fichiers du dépôt "+gh.owner+"/"+gh.repo+" (erreur "+r.status+"). Le dépôt doit être public.";return;}
+    const all=(await r.json()).filter(f=>f.type==="file");
+    ONLINE_IMG=all.filter(f=>IMG_RE.test(f.name)).map(f=>({file:f.name})).sort((a,b)=>a.file.localeCompare(b.file));
+    const files=all.filter(f=>/\.json$/i.test(f.name)),cls=[];
+    const metas=await Promise.all(files.map(async f=>{
+      try{const j=await (await fetch(encodeURI(f.name),{cache:"no-cache"})).json();
+        if(j.format===ENC_FORMAT)return {file:f.name,name:j.name||f.name,encrypted:true};
+        if(Array.isArray(j.zones)&&Array.isArray(j.checklists))return {file:f.name,name:j.name||f.name,encrypted:false};
+        if(j.format==="checklist"&&j.checklist)cls.push({file:f.name,name:j.checklist.name||f.name});
+      }catch(e){}
+      return null;}));
+    ONLINE=metas.filter(Boolean).sort((a,b)=>a.name.localeCompare(b.name));
+    ONLINE_CL=cls.sort((a,b)=>a.name.localeCompare(b.name));
+    ONLINE_MSG=(ONLINE.length||ONLINE_CL.length||ONLINE_IMG.length)?"":"Aucun profil, checklist ou image trouvé à côté de index.html dans le dépôt.";
+  }catch(e){ONLINE=[];ONLINE_CL=[];ONLINE_IMG=[];ONLINE_MSG="Impossible de joindre GitHub ("+e.message+").";}
+  if(!DB.image)renderCockpit();
+}
+async function openOnlineProfile(i){
+  const p=ONLINE[i];if(!p)return;
+  try{
+    const r=await fetch(encodeURI(p.file),{cache:"no-cache"});if(!r.ok)throw new Error("fichier introuvable ("+r.status+")");
+    const parsed=await unlockIfEncrypted(await r.json(),p.name);if(!parsed||!applyProfile(parsed))return;
+    if(DB.imageFile&&!DB.image)toast("Chargement de l'image…");
+    const ok=await fetchProfileImage();
+    if(!DB.image&&!ok){goTab("cockpit");toast("Profil chargé ✓ — image introuvable, charge-la manuellement");return;}
+    toast("Profil « "+(DB.name||p.name)+" » chargé ✓");
+  }catch(err){alert("Impossible de charger le profil : "+err.message);}
+}
+function onlineListHTML(){return ONLINE.map((p,i)=>`<button class="online-item" data-online="${i}"><span>${p.encrypted?"🔒":"📄"}</span><span class="nm">${esc(p.name)}</span><span class="muted">Ouvrir →</span></button>`).join("");}
+// Checklist individuelle en ligne : ajoutée au profil en cours
+async function openOnlineChecklist(i){
+  const c=ONLINE_CL[i];if(!c)return;
+  try{const r=await fetch(encodeURI(c.file),{cache:"no-cache"});if(!r.ok)throw new Error("fichier introuvable ("+r.status+")");
+    if(importChecklistObj(await r.json()))goTab("checklists");
+  }catch(err){alert("Impossible de charger la checklist : "+err.message);}
+}
+// Image en ligne : devient l'image du cockpit du profil en cours
+async function openOnlineImage(i){
+  const im=ONLINE_IMG[i];if(!im)return;
+  try{toast("Chargement de l'image…");const r=await fetch(encodeURI(im.file));if(!r.ok)throw new Error("image introuvable ("+r.status+")");
+    loadImageFile(await r.blob(),im.file);goTab("cockpit");
+  }catch(err){alert("Impossible de charger l'image : "+err.message);}
+}
+const onlineItem=(attr,i,ico,label,action)=>`<button class="online-item" ${attr}="${i}"><span>${ico}</span><span class="nm">${esc(label)}</span><span class="muted">${action}</span></button>`;
+function bindOnline(root){
+  const close=b=>{const ov=b.closest(".pw-overlay");if(ov)ov.remove();};
+  root.querySelectorAll("[data-online]").forEach(b=>b.onclick=()=>{close(b);openOnlineProfile(+b.dataset.online);});
+  root.querySelectorAll("[data-online-cl]").forEach(b=>b.onclick=()=>{close(b);openOnlineChecklist(+b.dataset.onlineCl);});
+  root.querySelectorAll("[data-online-img]").forEach(b=>b.onclick=()=>{close(b);openOnlineImage(+b.dataset.onlineImg);});
+}
+$("#btnOnline").onclick=()=>{
+  const ov=document.createElement("div");ov.className="overlay pw-overlay";
+  const sec=(title,html,hint)=>html?`<h3 class="online-h">${title}</h3><div class="online-list">${html}</div>${hint?`<p class="hint">${hint}</p>`:""}`:"";
+  ov.innerHTML=`<div class="card pw-card online-card"><h2>☁ Fichiers en ligne</h2>
+    <p class="hint" style="margin:0">Fichiers hébergés à côté de l'app.</p>
+    ${ONLINE_MSG?`<p class="online-msg">${esc(ONLINE_MSG)}</p>`:""}
+    ${sec("Profils",onlineListHTML(),"🔒 = profil chiffré : le mot de passe est demandé à l'ouverture. L'image du cockpit est chargée avec le profil.")}
+    ${sec("Checklists",ONLINE_CL.map((c,i)=>onlineItem("data-online-cl",i,"📋",c.name,"Ajouter au profil →")).join(""),"Ajoutée au profil en cours.")}
+    ${sec("Images",ONLINE_IMG.map((m,i)=>onlineItem("data-online-img",i,"🖼",m.file,"Utiliser →")).join(""),"Devient l'image du cockpit du profil en cours.")}
+    <div class="row" style="justify-content:center;margin-top:10px"><button id="olClose">Fermer</button></div></div>`;
+  document.body.appendChild(ov);bindOnline(ov);ov.querySelector("#olClose").onclick=()=>ov.remove();
+  ov.addEventListener("click",e=>{if(e.target===ov)ov.remove();});
+};
+function goTab(view){const t=$(`.tab[data-view="${view}"]`);if(t)t.click();}
+// Glisser-déposer un profil JSON ou une image n'importe où dans la fenêtre
+let dragDepth=0;
+const hasFiles=e=>e.dataTransfer&&[...e.dataTransfer.types].includes("Files");
+window.addEventListener("dragenter",e=>{if(!hasFiles(e))return;dragDepth++;document.body.classList.add("dragging-file");});
+window.addEventListener("dragleave",e=>{if(!hasFiles(e))return;if(--dragDepth<=0){dragDepth=0;document.body.classList.remove("dragging-file");}});
+window.addEventListener("dragover",e=>{if(hasFiles(e))e.preventDefault();});
+window.addEventListener("drop",e=>{if(!hasFiles(e))return;e.preventDefault();dragDepth=0;document.body.classList.remove("dragging-file");
+  [...e.dataTransfer.files].forEach(f=>{if(/\.json$/i.test(f.name))importProfileFile(f);else if(f.type.startsWith("image/")){loadImageFile(f);goTab("cockpit");}else toast("Fichier non reconnu : "+f.name);});});
+$("#projName").oninput=()=>{DB.name=$("#projName").value;save();};
+function loadImageFile(file,name){const r=new FileReader();r.onload=()=>{DB.image=r.result;DB.imageFile=name||file.name||DB.imageFile;saveImage();save();renderCockpit();renderVisuIdle();renderTrainIdle();toast("Image chargée ✓");};r.readAsDataURL(file);}
+$("#btnLoadImg").onclick=()=>$("#imgIn").click();
+$("#imgIn").onchange=e=>{const f=e.target.files[0];if(f)loadImageFile(f);e.target.value="";};
+$("#radius").oninput=e=>{DB.radius=parseFloat(e.target.value);$("#radiusVal").textContent=DB.radius+"%";save();};
+
+$$(".tab").forEach(t=>t.onclick=()=>{
+  $$(".tab").forEach(x=>x.classList.remove("active"));$$(".view").forEach(x=>x.classList.remove("active"));
+  t.classList.add("active");$("#view-"+t.dataset.view).classList.add("active");
+  if(t.dataset.view==="train"){stopTrain();renderTrainList();renderTrainIdle();}
+  if(t.dataset.view==="checklists"){renderClList();renderClEditor();}
+  if(t.dataset.view==="cockpit"){renderCockpit();}
+  if(t.dataset.view==="visu"){renderVisuList();renderVisuIdle();}
+});
+
+/* ===== shared zoomer (always-on pan + wheel zoom) ===== */
+function makeZoomer(stage,zoomEl,img){
+  const Z={zoom:1,baseFit:1,panX:0,panY:0,cw:0,ch:0,onapply:null};
+  function apply(){const s=Z.baseFit*Z.zoom;zoomEl.style.transform=`translate(${Z.panX}px,${Z.panY}px) scale(${s})`;const l=stage.querySelector(".zlv");if(l)l.textContent=Math.round(Z.zoom*100)+"%";if(Z.onapply)Z.onapply(s);}
+  function fit(){const w=stage.getBoundingClientRect();if(!Z.cw||!Z.ch)return;Z.baseFit=Math.min((w.width-24)/Z.cw,(w.height-24)/Z.ch);Z.zoom=1;const s=Z.baseFit;Z.panX=(w.width-Z.cw*s)/2;Z.panY=(w.height-Z.ch*s)/2;apply();}
+  function zoomAt(mx,my,f){const eff=Z.baseFit*Z.zoom;const cx=(mx-Z.panX)/eff,cy=(my-Z.panY)/eff;Z.zoom=clamp(0.3,8,Z.zoom*f);const ne=Z.baseFit*Z.zoom;Z.panX=mx-cx*ne;Z.panY=my-cy*ne;apply();}
+  function zoomBy(f){const w=stage.getBoundingClientRect();zoomAt(w.width/2,w.height/2,f);}
+  function init(){Z.cw=img.naturalWidth;Z.ch=img.naturalHeight;zoomEl.style.width=Z.cw+"px";fit();}
+  stage.addEventListener("wheel",e=>{e.preventDefault();const r=stage.getBoundingClientRect();zoomAt(e.clientX-r.left,e.clientY-r.top,e.deltaY<0?1.12:0.89);},{passive:false});
+  function attachPan(onClick){
+    zoomEl.addEventListener("pointerdown",e=>{
+      if(e.target.closest(".zone"))return;
+      const sx=e.clientX,sy=e.clientY,px=Z.panX,py=Z.panY;let moved=false;
+      const mv=ev=>{Z.panX=px+(ev.clientX-sx);Z.panY=py+(ev.clientY-sy);apply();if(Math.hypot(ev.clientX-sx,ev.clientY-sy)>4)moved=true;};
+      const up=ev=>{window.removeEventListener("pointermove",mv);window.removeEventListener("pointerup",up);if(!moved&&onClick)onClick(ev);};
+      window.addEventListener("pointermove",mv);window.addEventListener("pointerup",up);
+    });
+  }
+  Z.fit=fit;Z.zoomBy=zoomBy;Z.zoomAt=zoomAt;Z.init=init;Z.apply=apply;Z.attachPan=attachPan;Z.eff=()=>Z.baseFit*Z.zoom;
+  return Z;
+}
+function zoomToolbar(stage){const tb=document.createElement("div");tb.className="zoomtb";tb.innerHTML=`<button class="sm" data-z="out">−</button><span class="zlv">100%</span><button class="sm" data-z="in">+</button><button class="sm" data-z="fit" title="Vue initiale">⌂</button>`;stage.appendChild(tb);return tb;}
+
+/* ===== GUIDE DE DÉMARRAGE ===== */
+function welcomeHTML(){
+  const nZ=DB.zones.length,nC=DB.checklists.length;
+  // Un profil JSON est chargé mais l'image manque : on ne montre que l'étape restante
+  if(nZ||nC){
+    return `<div class="welcome"><div class="welcome-in">
+      <h1>Plus qu'une étape : l'image du cockpit</h1>
+      <p class="lead">Le profil <b>${esc(DB.name||"")}</b> est chargé (${nZ} zone${nZ>1?"s":""}, ${nC} checklist${nC>1?"s":""}). Les zones sont positionnées sur une photo précise : charge maintenant <b>la même image</b> que celle utilisée pour créer le profil.</p>
+      <div class="wcard reco">
+        <div class="wstep done"><div class="wnum">✓</div><div class="wt"><b>Profil JSON importé</b><br><span class="muted">${esc(DB.name||"")}</span></div></div>
+        <div class="wstep next"><div class="wnum">2</div><div class="wt"><b>Charger l'image du cockpit</b><br><span class="muted">Ex. : <span class="mono">SR20_cockpit.jpg</span> pour le profil SR20, <span class="mono">Grob120_cockpit_complet.png</span> pour le profil Grob 120.</span><br><button class="primary" data-act="img">🖼 Charger l'image</button></div></div>
+        <div class="wstep"><div class="wnum">3</div><div class="wt"><b>S'entraîner</b><br><span class="muted">Onglet 🎯 Entraînement, choisis une checklist et clique les commandes dans l'ordre.</span></div></div>
+      </div>
+      <div class="wnote">💡 Tu peux aussi glisser-déposer l'image directement dans cette fenêtre. L'image n'est pas incluse dans le fichier JSON : garde-la à côté du JSON.</div>
+    </div></div>`;
+  }
+  return `<div class="welcome"><div class="welcome-in">
+    <h1>Bienvenue dans Checklister ✈</h1>
+    <p class="lead">Apprends tes checklists en cliquant les commandes du cockpit dans le bon ordre. Un <b>profil</b> = un fichier JSON (zones cliquables + checklists) + l'image du cockpit sur laquelle les zones sont placées.</p>
+    ${ONLINE.length?`<div class="wcard reco" style="margin-bottom:16px"><h2>☁ Profils en ligne<span class="wtag">Le plus simple</span></h2>
+      <div class="sub">Choisis un avion (saisis le mot de passe s'il est protégé 🔒) : le profil et l'image du cockpit se chargent automatiquement.</div>
+      <div class="online-list">${onlineListHTML()}</div></div>`:""}
+    <div class="wcards">
+      <div class="wcard reco">
+        <h2>J'ai déjà un profil<span class="wtag">Recommandé</span></h2>
+        <div class="sub">Par exemple <span class="mono">SR20_…_checklister.json</span> ou <span class="mono">GROB120_…_checklister.json</span>.</div>
+        <div class="wstep next"><div class="wnum">1</div><div class="wt"><b>Importer le profil JSON</b><br><button class="primary" data-act="json">📂 Importer profil JSON</button></div></div>
+        <div class="wstep"><div class="wnum">2</div><div class="wt"><b>Charger l'image du cockpit</b><br><span class="muted">La photo qui correspond au profil (elle n'est pas dans le JSON).</span></div></div>
+        <div class="wstep"><div class="wnum">3</div><div class="wt"><b>S'entraîner</b><br><span class="muted">Onglet 🎯 Entraînement.</span></div></div>
+      </div>
+      <div class="wcard">
+        <h2>Je crée un nouveau profil</h2>
+        <div class="sub">Pour un nouvel avion, à partir d'une photo de son tableau de bord.</div>
+        <div class="wstep next"><div class="wnum">1</div><div class="wt"><b>Charger la photo du cockpit</b><br><button data-act="img">🖼 Charger l'image</button></div></div>
+        <div class="wstep"><div class="wnum">2</div><div class="wt"><b>Poser les zones</b><br><span class="muted">Clique sur chaque commande (Battery, Throttle…) pour créer une zone cliquable.</span></div></div>
+        <div class="wstep"><div class="wnum">3</div><div class="wt"><b>Créer les checklists</b><br><span class="muted">Onglet 📋 Checklists : ajoute les étapes dans l'ordre.</span></div></div>
+        <div class="wstep"><div class="wnum">4</div><div class="wt"><b>Exporter le profil JSON</b><br><span class="muted">Bouton en haut à droite, pour le sauvegarder ou le partager.</span></div></div>
+      </div>
+    </div>
+    <div class="wnote">💡 Astuce : tu peux glisser-déposer le fichier JSON et l'image directement dans cette fenêtre. Ton travail est aussi conservé automatiquement dans ce navigateur.</div>
+  </div></div>`;
+}
+// Bandeau d'aide affiché sur l'image quand le profil est encore incomplet
+function guideBannerHTML(){
+  if(!DB.zones.length)return `<span>👉 <b>Étape suivante :</b> clique sur une commande de l'image pour créer ta première zone (ex. Battery).</span><button class="x" title="Masquer">×</button>`;
+  if(!DB.checklists.length)return `<span>✓ ${DB.zones.length} zone${DB.zones.length>1?"s":""}. <b>Étape suivante :</b> créer les checklists.</span><button class="sm primary" data-act="go-checklists">📋 Checklists →</button><button class="x" title="Masquer">×</button>`;
+  return "";
+}
+let bannerHidden=false;
+function refreshBanner(){
+  const stage=$("#cockpitStage");if(!stage||!DB.image)return;
+  let b=stage.querySelector(".guide-banner");const html=bannerHidden?"":guideBannerHTML();
+  if(!html){if(b)b.remove();return;}
+  if(!b){b=document.createElement("div");b.className="guide-banner";stage.appendChild(b);}
+  b.innerHTML=html;bindWelcome(b);const x=b.querySelector(".x");if(x)x.onclick=()=>{bannerHidden=true;b.remove();};
+}
+function bindWelcome(root){
+  root.querySelectorAll("[data-act]").forEach(b=>b.onclick=()=>{const a=b.dataset.act;
+    if(a==="img")$("#imgIn").click();
+    else if(a==="json")$("#fileIn").click();
+    else if(a.startsWith("go-"))goTab(a.slice(3));});
+}
+// Message d'état vide avec bouton vers l'onglet à compléter
+function emptyGuide(ico,msg,btnLabel,view){return `<div class="no-img"><div class="empty-guide"><div class="ico">${ico}</div><p>${msg}</p>${btnLabel?`<button class="primary" data-act="go-${view}">${btnLabel}</button>`:""}</div></div>`;}
+
+/* ===== COCKPIT ===== */
+let CK={Z:null,img:null,ov:null};
+function renderCockpit(){
+  const stage=$("#cockpitStage");stage.innerHTML="";
+  if(!DB.image){stage.innerHTML=welcomeHTML();bindWelcome(stage);bindOnline(stage);renderZoneList();renderSelBox();return;}
+  const tb=zoomToolbar(stage);
+  refreshBanner();
+  const zoomEl=document.createElement("div");zoomEl.className="zoom";
+  const img=document.createElement("img");img.src=DB.image;img.draggable=false;
+  const ov=document.createElement("div");ov.className="zones-ov";
+  zoomEl.appendChild(img);zoomEl.appendChild(ov);stage.appendChild(zoomEl);
+  const Z=makeZoomer(stage,zoomEl,img);CK={Z,img,ov,zoomEl};
+  Z.onapply=()=>sizeZones();
+  img.onload=()=>{Z.init();drawZones();};if(img.complete&&img.naturalWidth){Z.init();drawZones();}
+  tb.onclick=e=>{const a=e.target.dataset.z;if(a==="in")Z.zoomBy(1.25);if(a==="out")Z.zoomBy(0.8);if(a==="fit")Z.fit();};
+  Z.attachPan(ev=>{
+    const rect=img.getBoundingClientRect();const x=((ev.clientX-rect.left)/rect.width)*100,y=((ev.clientY-rect.top)/rect.height)*100;
+    if(x<0||x>100||y<0||y>100)return;
+    const name=prompt("Nom de la zone :","Zone "+(DB.zones.length+1));if(name===null)return;
+    pushUndo();DB.zones.push({id:uid(),name:name||("Zone "+(DB.zones.length+1)),x:+x.toFixed(2),y:+y.toFixed(2),r:DB.radius,shape:"circle"});selZone=DB.zones[DB.zones.length-1].id;save();drawZones();renderZoneList();renderSelBox();refreshBanner();
+  });
+  renderZoneList();renderSelBox();
+}
+// Surface d'une zone en pixels image, et empilement : les plus petites zones passent devant les grandes
+function zoneArea(z,cw,ch){if(z.shape==="rect")return 4*((z.rw||z.r||DB.radius)/100*cw)*((z.rh||z.r||DB.radius)/100*ch);const r=(z.r||DB.radius)/100*cw;return Math.PI*r*r;}
+function stackZones(ov,cw,ch){const els=[...ov.querySelectorAll(".zone")];const area=el=>{const z=DB.zones.find(z=>z.id===el.dataset.id);return z?zoneArea(z,cw,ch):0;};els.map(el=>[el,area(el)]).sort((p,q)=>q[1]-p[1]).forEach(([el],i)=>el.style.zIndex=i+1);}
+function sizeZones(){if(!CK.ov)return;const eff=CK.Z.eff();stackZones(CK.ov,CK.Z.cw,CK.Z.ch);CK.ov.querySelectorAll(".zone").forEach(el=>{const z=DB.zones.find(z=>z.id===el.dataset.id);if(!z)return;const isR=z.shape==="rect";const w=isR?((z.rw||z.r||DB.radius)/100)*CK.Z.cw*2:((z.r||DB.radius)/100)*CK.Z.cw*2;const h=isR?((z.rh||z.r||DB.radius)/100)*CK.Z.ch*2:w;el.style.width=w+"px";el.style.height=h+"px";el.style.borderRadius=isR?(4/eff)+"px":"50%";el.style.borderWidth=(2/eff)+"px";const lbl=el.querySelector(".zlabel");if(lbl){const inv=1/eff;lbl.style.fontSize=(11*inv)+"px";lbl.style.borderWidth=(1*inv)+"px";lbl.style.padding=(2*inv)+"px "+(7*inv)+"px";lbl.style.top=(-6*inv)+"px";}el.querySelectorAll(".zh").forEach(h=>{const hs=13/eff;h.style.width=h.style.height=hs+"px";h.style.marginLeft=h.style.marginTop=(-hs/2)+"px";h.style.borderWidth=(1.5/eff)+"px";});});}
+function drawZones(){const ov=CK.ov;ov.innerHTML="";DB.zones.forEach(z=>{const el=document.createElement("div");el.className="zone"+(selZone===z.id?" selected":"");el.dataset.id=z.id;el.style.left=z.x+"%";el.style.top=z.y+"%";el.innerHTML=`<div class="zlabel">${esc(z.name)}</div>`;
+  if(selZone===z.id)addHandles(el,z);
+  el.addEventListener("pointerdown",e=>{if(e.target.classList.contains("zh"))return;e.stopPropagation();selZone=z.id;markSel();renderSelBox();renderZoneList();const sx=e.clientX,sy=e.clientY;let moved=false;const snap=snapshot();
+    const mv=ev=>{const rect=CK.img.getBoundingClientRect();let x=((ev.clientX-rect.left)/rect.width)*100,y=((ev.clientY-rect.top)/rect.height)*100;x=clamp(0,100,x);y=clamp(0,100,y);z.x=+x.toFixed(2);z.y=+y.toFixed(2);el.style.left=z.x+"%";el.style.top=z.y+"%";if(Math.hypot(ev.clientX-sx,ev.clientY-sy)>3)moved=true;};
+    const up=()=>{window.removeEventListener("pointermove",mv);window.removeEventListener("pointerup",up);if(moved){commitUndo(snap);save();}};
+    window.addEventListener("pointermove",mv);window.addEventListener("pointerup",up);});
+  el.addEventListener("dblclick",e=>{e.stopPropagation();renameZone(z.id);});ov.appendChild(el);});sizeZones();}
+function markSel(){if(!CK.ov)return;CK.ov.querySelectorAll(".zone").forEach(el=>{const on=el.dataset.id===selZone;el.classList.toggle("selected",on);el.querySelectorAll(".zh").forEach(h=>h.remove());if(on){const z=DB.zones.find(z=>z.id===selZone);if(z)addHandles(el,z);}});sizeZones();}
+// Poignées : cercle = 4 (rayon depuis le centre) ; rectangle = 8 (le bord opposé reste fixe)
+const HANDLE_POS={n:[50,0],s:[50,100],e:[100,50],w:[0,50],ne:[100,0],nw:[0,0],se:[100,100],sw:[0,100]};
+const HANDLE_CUR={n:"ns-resize",s:"ns-resize",e:"ew-resize",w:"ew-resize",ne:"nesw-resize",sw:"nesw-resize",nw:"nwse-resize",se:"nwse-resize"};
+function addHandles(el,z){
+  const dirs=z.shape==="rect"?["n","s","e","w","ne","nw","se","sw"]:["n","s","e","w"];
+  dirs.forEach(d=>{const h=document.createElement("div");h.className="zh";h.dataset.dir=d;h.style.left=HANDLE_POS[d][0]+"%";h.style.top=HANDLE_POS[d][1]+"%";h.style.cursor=HANDLE_CUR[d];
+    h.addEventListener("pointerdown",e=>{e.stopPropagation();e.preventDefault();startResize(z,el,d);});el.appendChild(h);});
+}
+function startResize(z,el,dir){
+  const snap=snapshot();let changed=false;const MIN=0.2;
+  const rw0=z.rw||z.r||DB.radius,rh0=z.rh||z.r||DB.radius;
+  let l=z.x-rw0,r=z.x+rw0,t=z.y-rh0,b=z.y+rh0;
+  const mv=ev=>{const rect=CK.img.getBoundingClientRect();const px=clamp(0,100,(ev.clientX-rect.left)/rect.width*100),py=clamp(0,100,(ev.clientY-rect.top)/rect.height*100);changed=true;
+    if(z.shape==="rect"){
+      if(dir.includes("e"))r=Math.max(px,l+MIN);if(dir.includes("w"))l=Math.min(px,r-MIN);
+      if(dir.includes("s"))b=Math.max(py,t+MIN);if(dir.includes("n"))t=Math.min(py,b-MIN);
+      z.x=+((l+r)/2).toFixed(2);z.y=+((t+b)/2).toFixed(2);z.rw=+((r-l)/2).toFixed(3);z.rh=+((b-t)/2).toFixed(3);
+      el.style.left=z.x+"%";el.style.top=z.y+"%";
+    }else{ // rayon en % de la largeur ; l'écart vertical est converti à la même échelle
+      const dx=px-z.x,dy=(py-z.y)*CK.Z.ch/CK.Z.cw;z.r=+Math.max(MIN,Math.hypot(dx,dy)).toFixed(3);
+    }
+    sizeZones();};
+  const up=()=>{window.removeEventListener("pointermove",mv);window.removeEventListener("pointerup",up);if(changed){commitUndo(snap);save();renderSelBox();}};
+  window.addEventListener("pointermove",mv);window.addEventListener("pointerup",up);
+}
+function renderSelBox(){const box=$("#selZoneBox");const z=DB.zones.find(z=>z.id===selZone);if(!z){box.innerHTML="";return;}
+  const isR=z.shape==="rect";
+  box.innerHTML=`<div class="sel-box"><div class="t">▸ ${esc(z.name)}</div>
+    <div class="row" style="margin-bottom:6px">
+      <button class="sm${!isR?" primary":""}" id="shpC">○ Cercle</button>
+      <button class="sm${isR?" primary":""}" id="shpR">□ Rect</button>
+    </div>
+    <p class="hint" style="margin:0 0 8px">Tire les poignées blanches de la zone pour la redimensionner.</p>
+    <div class="row"><button class="sm" id="selRen">Renommer</button><button class="sm danger" id="selDel">Supprimer</button></div></div>`;
+  $("#shpC").onclick=()=>{if(!isR)return;pushUndo();z.shape="circle";z.r=z.r||DB.radius;save();drawZones();renderSelBox();};
+  $("#shpR").onclick=()=>{if(isR)return;pushUndo();z.shape="rect";z.rw=z.rw||(z.r||DB.radius);z.rh=z.rh||(z.r||DB.radius)*CK.Z.cw/CK.Z.ch;save();drawZones();renderSelBox();};
+  $("#selRen").onclick=()=>renameZone(z.id);$("#selDel").onclick=()=>delZone(z.id);}
+function renameZone(id){const z=DB.zones.find(z=>z.id===id);if(!z)return;const n=prompt("Renommer la zone :",z.name);if(n!==null&&n!==z.name){pushUndo();z.name=n;save();drawZones();renderZoneList();renderSelBox();}}
+function delZone(id){if(!confirm("Supprimer cette zone ?"))return;pushUndo();DB.zones=DB.zones.filter(z=>z.id!==id);DB.checklists.forEach(c=>c.steps.forEach(s=>{if(s.zoneId===id){s.zoneId=null;s.type="info";}}));if(selZone===id)selZone=null;save();drawZones();renderZoneList();renderSelBox();refreshBanner();}
+function renderZoneList(){if(CK.ov)CK.ov.querySelectorAll(".zone.hover").forEach(el=>el.classList.remove("hover"));$("#zoneCount").textContent=DB.zones.length;const box=$("#zoneList");box.innerHTML="";if(!DB.zones.length){box.innerHTML=DB.image?'<p class="hint">Aucune zone. Clique sur l\'image pour en ajouter.</p>':'<p class="hint">Aucune zone. Importe un profil JSON ou charge l\'image du cockpit pour commencer (voir le guide à droite).</p>';return;}DB.zones.forEach((z,i)=>{const d=document.createElement("div");d.className="list-item"+(selZone===z.id?" active":"");d.innerHTML=`<span class="ct">${i+1}</span><span class="nm">${esc(z.name)}</span>`;d.onclick=()=>{selZone=z.id;markSel();renderSelBox();renderZoneList();};
+  const hov=on=>{const el=CK.ov&&CK.ov.querySelector(`.zone[data-id="${z.id}"]`);if(el)el.classList.toggle("hover",on);};
+  d.onmouseenter=()=>hov(true);d.onmouseleave=()=>hov(false);box.appendChild(d);});}
+
+/* ===== ANNULER (zones du cockpit ; les checklists sont incluses car supprimer une zone modifie leurs étapes) ===== */
+const UNDO=[];
+function snapshot(){return JSON.stringify({zones:DB.zones,checklists:DB.checklists});}
+function commitUndo(snap){UNDO.push(snap);if(UNDO.length>80)UNDO.shift();updateUndoBtn();}
+function pushUndo(){commitUndo(snapshot());}
+function clearUndo(){UNDO.length=0;updateUndoBtn();}
+function updateUndoBtn(){const b=$("#btnUndo");if(!b)return;b.disabled=!UNDO.length;b.textContent="↶ Annuler"+(UNDO.length?" ("+UNDO.length+")":"");}
+function undo(){
+  const snap=UNDO.pop();if(!snap){toast("Rien à annuler");return;}
+  const o=JSON.parse(snap);DB.zones=o.zones;DB.checklists=o.checklists;
+  if(selZone&&!DB.zones.some(z=>z.id===selZone))selZone=null;
+  save();if(CK.ov)drawZones();renderZoneList();renderSelBox();refreshBanner();updateUndoBtn();toast("Modification annulée ↶");
+}
+$("#btnUndo").onclick=undo;
+window.addEventListener("keydown",e=>{
+  if(!(e.ctrlKey||e.metaKey)||e.key.toLowerCase()!=="z"||e.shiftKey)return;
+  if(!$("#view-cockpit").classList.contains("active"))return;
+  const tg=e.target;if(tg&&tg.closest&&tg.closest("input,textarea,select"))return;
+  e.preventDefault();undo();
+});
+
+/* ===== CHECKLISTS ===== */
+let editKey=null; // étape en cours d'édition : "<id checklist>:<index>"
+$("#btnNewCl").onclick=()=>{const name=prompt("Nom de la checklist :","Nouvelle checklist");if(name===null)return;const c={id:uid(),name:name||"Checklist",steps:[],color:"#3ad17a"};DB.checklists.push(c);curCl=c.id;save();renderClList();renderClEditor();};
+$("#addType").onchange=()=>{$("#addZoneWrap").style.display=$("#addType").value==="zone"?"":"none";};
+function renderClList(){$("#clCount").textContent=DB.checklists.length;const box=$("#clList");box.innerHTML="";if(!DB.checklists.length){box.innerHTML='<p class="hint">Aucune checklist.</p>';return;}
+  let dragCl=null;
+  DB.checklists.forEach((c,i)=>{const d=document.createElement("div");d.className="list-item"+(curCl===c.id?" active":"");const col=c.color||"#3ad17a";d.innerHTML=`<span class="drag-handle" draggable="true" title="Réordonner" style="font-size:11px;margin-right:4px">⠿</span><span class="cl-dot editable" style="background:${col}"></span><span class="nm">${esc(c.name)}</span>`;
+    d.querySelector(".cl-dot").onclick=e=>{e.stopPropagation();window.openColorPicker(c.id,e.target);};
+    d.onclick=()=>{curCl=c.id;editKey=null;renderClList();renderClEditor();};
+    const handle=d.querySelector(".drag-handle");
+    handle.addEventListener("dragstart",e=>{dragCl=i;d.style.opacity=".35";e.dataTransfer.effectAllowed="move";});
+    handle.addEventListener("dragend",()=>{dragCl=null;box.querySelectorAll(".list-item").forEach(el=>{el.style.opacity="";el.classList.remove("drag-over");});});
+    d.addEventListener("dragover",e=>{e.preventDefault();if(dragCl!==null&&dragCl!==i){box.querySelectorAll(".list-item").forEach(el=>el.classList.remove("drag-over"));d.classList.add("drag-over");}});
+    d.addEventListener("dragleave",()=>d.classList.remove("drag-over"));
+    d.addEventListener("drop",e=>{e.preventDefault();if(dragCl===null||dragCl===i)return;const moved=DB.checklists.splice(dragCl,1)[0];const target=dragCl<i?i-1:i;DB.checklists.splice(target,0,moved);save();renderClList();renderAllLists();});
+    box.appendChild(d);});
+  // sentinel
+  const sentinel=document.createElement("div");sentinel.style.cssText="height:4px;border-top:2px solid transparent;transition:.12s;margin-top:2px";
+  sentinel.addEventListener("dragover",e=>{e.preventDefault();sentinel.style.borderTopColor="var(--cyan)";});
+  sentinel.addEventListener("dragleave",()=>sentinel.style.borderTopColor="transparent");
+  sentinel.addEventListener("drop",e=>{e.preventDefault();sentinel.style.borderTopColor="transparent";if(dragCl===null||dragCl===DB.checklists.length-1)return;const moved=DB.checklists.splice(dragCl,1)[0];DB.checklists.push(moved);save();renderClList();renderAllLists();});
+  box.appendChild(sentinel);
+}
+function renderClEditor(){const c=DB.checklists.find(c=>c.id===curCl);if(!c){const em=$("#clEmpty");
+    if(!DB.zones.length){em.innerHTML=`<div class="empty-guide"><div style="font-size:42px;opacity:.5">✈</div><p>Pas encore de zones cliquables.<br>Commence par importer un profil ou poser des zones dans l'onglet Cockpit.</p><button class="primary" data-act="go-cockpit">✈ Aller au Cockpit</button></div>`;bindWelcome(em);}
+    else if(!DB.checklists.length)em.innerHTML=`<div class="empty-guide"><div style="font-size:42px;opacity:.5">📋</div><p>Aucune checklist pour l'instant.<br>Clique sur <b>« + Nouvelle checklist »</b> à gauche, puis ajoute les étapes dans l'ordre.</p></div>`;
+    else em.textContent="Sélectionne ou crée une checklist à gauche.";
+    em.style.display="";$("#clContent").style.display="none";return;}$("#clEmpty").style.display="none";$("#clContent").style.display="";$("#clTitle").value=c.name;$("#clTitle").oninput=()=>{c.name=$("#clTitle").value;save();renderClList();};const dot=$("#clColorDot");if(dot){dot.style.background=c.color||"#3ad17a";dot.onclick=e=>{e.stopPropagation();window.openColorPicker(c.id,e.target);}; }
+  const zsel=$("#addZone");zsel.innerHTML="";[...DB.zones].sort((a,b)=>a.name.localeCompare(b.name)).forEach(z=>{const o=document.createElement("option");o.value=z.id;o.textContent=z.name;zsel.appendChild(o);});if(!DB.zones.length)zsel.innerHTML='<option value="">— aucune zone —</option>';$("#addZoneWrap").style.display=$("#addType").value==="zone"?"":"none";
+  const list=$("#stepList");list.innerHTML="";if(!c.steps.length)list.innerHTML='<p class="hint">Aucune étape.</p>';
+  let dragIdx=null;
+  const zonesSorted=[...DB.zones].sort((a,b)=>a.name.localeCompare(b.name));
+  c.steps.forEach((s,i)=>{
+    if(editKey===c.id+":"+i){list.appendChild(stepEditor(c,s,i,zonesSorted));return;}
+    const z=DB.zones.find(z=>z.id===s.zoneId);const d=document.createElement("div");d.className="step";const tag=s.type==="zone"?`<span class="ztag ztag-zone">🎯 ${z?esc(z.name):"(supprimée)"}</span>`:`<span class="ztag info">ℹ info</span>`;const actTxt=esc(s.act||"");d.innerHTML=`<span class="drag-handle" draggable="true" title="Glisser pour réordonner">⠿</span><span class="idx">${i+1}</span>${tag}<span class="act">${actTxt}</span>`;
+    const handle=d.querySelector(".drag-handle");
+    handle.addEventListener("dragstart",e=>{dragIdx=i;d.classList.add("dragging");e.dataTransfer.effectAllowed="move";});
+    handle.addEventListener("dragend",()=>{dragIdx=null;list.querySelectorAll(".step").forEach(el=>el.classList.remove("dragging","drag-over"));sentinel.classList.remove("drag-over");});
+    d.addEventListener("dragover",e=>{e.preventDefault();if(dragIdx!==null&&dragIdx!==i){list.querySelectorAll(".step").forEach(el=>el.classList.remove("drag-over"));d.classList.add("drag-over");}});
+    d.addEventListener("dragleave",()=>d.classList.remove("drag-over"));
+    d.addEventListener("drop",e=>{e.preventDefault();if(dragIdx===null||dragIdx===i)return;const moved=c.steps.splice(dragIdx,1)[0];const targetIdx=dragIdx<i?i-1:i;c.steps.splice(targetIdx,0,moved);save();renderClEditor();});
+    const ctr=document.createElement("div");ctr.className="ctrls";const up=document.createElement("button");up.className="sm";up.textContent="▲";up.disabled=i===0;up.onclick=()=>{[c.steps[i-1],c.steps[i]]=[c.steps[i],c.steps[i-1]];save();renderClEditor();};const dn=document.createElement("button");dn.className="sm";dn.textContent="▼";dn.disabled=i===c.steps.length-1;dn.onclick=()=>{[c.steps[i+1],c.steps[i]]=[c.steps[i],c.steps[i+1]];save();renderClEditor();};const rm=document.createElement("button");rm.className="sm danger";rm.textContent="×";rm.onclick=()=>{c.steps.splice(i,1);save();renderClEditor();renderClList();};const ed=document.createElement("button");ed.className="sm";ed.textContent="✎";ed.title="Modifier l'étape (type, zone, texte)";ed.onclick=()=>{editKey=c.id+":"+i;renderClEditor();};ctr.appendChild(up);ctr.appendChild(dn);ctr.appendChild(rm);ctr.appendChild(ed);d.appendChild(ctr);list.appendChild(d);});
+  // Sentinel : zone de drop en fin de liste
+  const sentinel=document.createElement("div");sentinel.className="step-drop-end";
+  sentinel.addEventListener("dragover",e=>{e.preventDefault();sentinel.classList.add("drag-over");});
+  sentinel.addEventListener("dragleave",()=>sentinel.classList.remove("drag-over"));
+  sentinel.addEventListener("drop",e=>{e.preventDefault();sentinel.classList.remove("drag-over");if(dragIdx===null||dragIdx===c.steps.length-1)return;const moved=c.steps.splice(dragIdx,1)[0];c.steps.push(moved);save();renderClEditor();});
+  list.appendChild(sentinel);}
+// Ligne d'édition d'une étape : type, zone (si "zone"), texte ; Entrée = valider, Échap = annuler
+function stepEditor(c,s,i,zonesSorted){
+  const d=document.createElement("div");d.className="step editing";
+  const opts=zonesSorted.map(z=>`<option value="${z.id}"${z.id===s.zoneId?" selected":""}>${esc(z.name)}</option>`).join("");
+  d.innerHTML=`<span class="idx">${i+1}</span>
+    <select class="es-type"><option value="zone"${s.type==="zone"?" selected":""}>🎯 Zone</option><option value="info"${s.type!=="zone"?" selected":""}>ℹ Info</option></select>
+    <select class="es-zone">${opts||'<option value="">— aucune zone —</option>'}</select>
+    <input class="es-act" value="${esc(s.act||"")}" placeholder="Action / texte">
+    <div class="ctrls"><button class="sm primary es-ok" title="Valider (Entrée)">✓</button><button class="sm es-cancel" title="Annuler (Échap)">✕</button></div>`;
+  const type=d.querySelector(".es-type"),zone=d.querySelector(".es-zone"),act=d.querySelector(".es-act");
+  const sync=()=>{zone.style.display=type.value==="zone"?"":"none";};sync();type.onchange=sync;
+  const cancel=()=>{editKey=null;renderClEditor();};
+  const ok=()=>{
+    if(type.value==="zone"&&!zone.value){alert("Aucune zone disponible : crée d'abord des zones dans l'onglet Cockpit.");return;}
+    s.type=type.value;s.zoneId=type.value==="zone"?zone.value:null;s.act=act.value.trim();
+    editKey=null;save();renderClEditor();toast("Étape modifiée ✓");};
+  d.querySelector(".es-ok").onclick=ok;d.querySelector(".es-cancel").onclick=cancel;
+  d.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();ok();}if(e.key==="Escape"){e.preventDefault();cancel();}});
+  setTimeout(()=>act.focus(),0);
+  return d;
+}
+$("#btnAddStep").onclick=()=>{const c=DB.checklists.find(c=>c.id===curCl);if(!c)return;const type=$("#addType").value;const act=$("#addAct").value.trim();let zoneId=null;if(type==="zone"){zoneId=$("#addZone").value;if(!zoneId){alert("Crée d'abord des zones dans l'onglet Cockpit.");return;}}c.steps.push({type,zoneId,act});$("#addAct").value="";save();renderClEditor();renderClList();};
+$("#btnImportCl").onclick=()=>$("#fileClIn").click();
+// Ajoute une checklist individuelle ({format:"checklist",checklist}) au profil en cours
+function importChecklistObj(parsed){
+  if(parsed.format!=="checklist"||!parsed.checklist){alert("Ce fichier n'est pas une checklist individuelle.\nUtilise «📂 Importer» (en haut) pour un profil complet.");return false;}
+  const cl=parsed.checklist;if(!cl.id)cl.id=uid();
+  const exists=DB.checklists.findIndex(c=>c.id===cl.id);
+  if(exists>=0){if(!confirm("La checklist «"+cl.name+"» existe déjà. Remplacer ?"))return false;DB.checklists[exists]=cl;}
+  else DB.checklists.push(cl);
+  curCl=cl.id;save();renderAll();toast("Checklist importée ✓");return true;
+}
+$("#fileClIn").onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{importChecklistObj(await parseJsonText(await f.text()));}catch(err){alert("Fichier invalide : "+err.message);}
+  e.target.value="";
+};
+$("#btnDelCl").onclick=()=>{const c=DB.checklists.find(c=>c.id===curCl);if(!c)return;if(!confirm("Supprimer « "+c.name+" » ?"))return;DB.checklists=DB.checklists.filter(x=>x.id!==curCl);curCl=null;save();renderClList();renderClEditor();};
+$("#btnExportCl").onclick=async()=>{const c=DB.checklists.find(c=>c.id===curCl);if(!c)return;const json=JSON.stringify({format:"checklist",checklist:c},null,1);const fname=(c.name||"checklist").replace(/\s+/g,"_")+"_checklister_cl.json";if(window.showSaveFilePicker){try{const fh=await window.showSaveFilePicker({suggestedName:fname,types:[{description:"JSON",accept:{"application/json":[".json"]}}]});const w=await fh.createWritable();await w.write(json);await w.close();toast("Checklist exportée ✓");return;}catch(e){if(e.name==="AbortError")return;}}const b=new Blob([json],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=fname;a.click();toast("Checklist exportée ✓");};
+
+/* ===== VISUALISER (flow) ===== */
+let VS={clId:null,Z:null,infoOv:null};
+function renderVisuList(){const box=$("#visuList");box.innerHTML="";if(!DB.checklists.length){box.innerHTML='<p class="hint">Crée des checklists d\'abord.</p>';return;}DB.checklists.forEach(c=>{const d=document.createElement("div");d.className="list-item"+(VS.clId===c.id?" active":"");const col=c.color||"#3ad17a";d.innerHTML=`<span class="cl-dot" style="background:${col}"></span><span class="nm">${esc(c.name)}</span>`;d.onclick=()=>{VS.clId=c.id;renderVisuList();renderVisu();};box.appendChild(d);});}
+function idleGuide(ico,readyMsg){
+  if(!DB.image&&!DB.zones.length&&!DB.checklists.length)return emptyGuide("✈","Aucun profil chargé.<br>Importe un profil JSON ou crée-en un depuis l'onglet Cockpit.","✈ Aller au Cockpit","cockpit");
+  if(!DB.image)return emptyGuide("🖼","L'image du cockpit n'est pas chargée.<br>Charge-la depuis l'onglet Cockpit.","✈ Aller au Cockpit","cockpit");
+  if(!DB.checklists.length)return emptyGuide("📋","Aucune checklist pour l'instant.","📋 Créer une checklist","checklists");
+  return emptyGuide(ico,readyMsg);
+}
+function renderVisuIdle(){if(VS.clId){renderVisu();return;}const stage=$("#visuStage");stage.innerHTML=idleGuide("🗺","Sélectionne une checklist à gauche pour voir son flow");bindWelcome(stage);}
+$("#visuLabels").onchange=()=>{if(VS.clId)renderVisu();};
+$("#visuGradient").onchange=()=>{if(VS.clId)renderVisu();};
+function renderVisu(){
+  const cl=DB.checklists.find(c=>c.id===VS.clId);const stage=$("#visuStage");stage.innerHTML="";
+  if(!cl||!DB.image){renderVisuIdle();$("#visuProg").style.display="none";return;}
+  const tb=zoomToolbar(stage);
+  const zoomEl=document.createElement("div");zoomEl.className="zoom";
+  const img=document.createElement("img");img.src=DB.image;img.draggable=false;
+  zoomEl.appendChild(img);stage.appendChild(zoomEl);
+  const Z=makeZoomer(stage,zoomEl,img);VS.Z=Z;VS.zoomEl=zoomEl;VS.cl=cl;
+  img.onload=()=>{Z.init();drawFlow(zoomEl,cl,Z);renderVisuProg(cl);};if(img.complete&&img.naturalWidth){Z.init();drawFlow(zoomEl,cl,Z);renderVisuProg(cl);}
+  tb.onclick=e=>{const a=e.target.dataset.z;if(a==="in")Z.zoomBy(1.25);if(a==="out")Z.zoomBy(0.8);if(a==="fit")Z.fit();};
+  Z.attachPan(null);
+  const ov=document.createElement("div");ov.style.cssText="position:absolute;top:52px;left:50%;transform:translateX(-50%);background:rgba(11,15,23,.93);border:1px solid var(--amber);border-radius:8px;padding:8px 18px;color:var(--amber);font-size:13px;pointer-events:none;opacity:0;transition:opacity .15s;z-index:9;max-width:75%;text-align:center;white-space:nowrap";stage.appendChild(ov);VS.infoOv=ov;
+}
+function drawFlow(zoomEl,cl,Z){
+  const old=zoomEl.querySelector("svg");if(old)old.remove();
+  const cw=Z.cw,ch=Z.ch;const hoverOn=$("#visuLabels").checked;
+  const pts=[];cl.steps.forEach((s,si)=>{if(s.type==="zone"){const z=DB.zones.find(z=>z.id===s.zoneId);if(z)pts.push({x:z.x/100*cw,y:z.y/100*ch,act:s.act||"",name:z.name,zoneId:s.zoneId,stepIdx:si});}});
+  const sw=cw*0.0035,rC=cw*0.013,fs=cw*0.019;
+  const gradOn=$("#visuGradient").checked;
+  const N=pts.length;
+  function lerpCol(t){const r=Math.round(54+(240-54)*t),g=Math.round(197+(160-197)*t),b=Math.round(224+(32-224)*t);return`rgb(${r},${g},${b})`;}
+  pts.forEach((p,i)=>{p.color=gradOn&&N>1?lerpCol(i/(Math.max(N-1,1))):"#36c5e0";});
+  const NS="http://www.w3.org/2000/svg";const svg=document.createElementNS(NS,"svg");
+  svg.setAttribute("viewBox",`0 0 ${cw} ${ch}`);svg.setAttribute("width",cw);svg.setAttribute("height",ch);
+  svg.style.cssText="position:absolute;inset:0;width:100%;height:100%;overflow:visible";
+  VS.svg=svg;
+  if(N>1){if(gradOn){
+    const SUB=16;const total=(N-1)*SUB;
+    for(let si=0;si<N-1;si++){for(let k=0;k<SUB;k++){
+      const t=((si*SUB+k)+0.5)/total;
+      const frac=k/SUB,frac2=(k+1)/SUB;
+      const x1=pts[si].x+(pts[si+1].x-pts[si].x)*frac;
+      const y1=pts[si].y+(pts[si+1].y-pts[si].y)*frac;
+      const x2=pts[si].x+(pts[si+1].x-pts[si].x)*frac2;
+      const y2=pts[si].y+(pts[si+1].y-pts[si].y)*frac2;
+      const ln=document.createElementNS(NS,"path");ln.setAttribute("d",`M${x1},${y1}L${x2},${y2}`);ln.setAttribute("stroke",lerpCol(t));ln.setAttribute("fill","none");ln.setAttribute("stroke-width",sw*2);ln.setAttribute("stroke-linecap","round");svg.appendChild(ln);
+    }}
+  }else{const pl=document.createElementNS(NS,"polyline");pl.setAttribute("points",pts.map(p=>p.x+","+p.y).join(" "));pl.setAttribute("fill","none");pl.setAttribute("stroke","#36c5e0");pl.setAttribute("stroke-width",sw*1.5);pl.setAttribute("stroke-linejoin","round");pl.setAttribute("opacity","0.85");svg.appendChild(pl);}}
+  pts.forEach((p,i)=>{
+    const g=document.createElementNS(NS,"g");g.style.cursor="pointer";g.dataset.idx=i;g.dataset.baseColor=p.color;
+    const c=document.createElementNS(NS,"circle");c.setAttribute("cx",p.x);c.setAttribute("cy",p.y);c.setAttribute("r",rC);c.setAttribute("fill","#0a1422");c.setAttribute("stroke",p.color);c.setAttribute("stroke-width",sw);g.appendChild(c);
+    const n=document.createElementNS(NS,"text");n.setAttribute("x",p.x);n.setAttribute("y",p.y);n.setAttribute("text-anchor","middle");n.setAttribute("dominant-baseline","central");n.setAttribute("font-size",fs);n.setAttribute("font-family","var(--mono)");n.setAttribute("font-weight","600");n.setAttribute("fill","#eaf7ff");n.textContent=(p.stepIdx+1);g.appendChild(n);
+    if(hoverOn&&(p.act||p.name)){const lblTxt=p.name+(p.act?" — "+p.act:"");const t=document.createElementNS(NS,"text");t.setAttribute("x",p.x+rC*1.4);t.setAttribute("y",p.y-rC*1.1);t.setAttribute("font-size",fs*0.92);t.setAttribute("font-family","var(--sans)");t.setAttribute("font-weight","500");t.setAttribute("fill","#dfe6f0");t.setAttribute("pointer-events","none");t.setAttribute("opacity","0");t.setAttribute("data-lbl","1");t.setAttribute("style",`paint-order:stroke;stroke:#070a11;stroke-width:${sw*1.6}px;stroke-linejoin:round;transition:opacity .12s`);t.textContent=lblTxt;g.appendChild(t);g.addEventListener("mouseenter",()=>t.setAttribute("opacity","1"));g.addEventListener("mouseleave",()=>t.setAttribute("opacity","0"));}
+    g.addEventListener("mouseenter",()=>visuHighlight(i,true));
+    g.addEventListener("mouseleave",()=>visuHighlight(i,false));
+    svg.appendChild(g);
+  });
+  zoomEl.appendChild(svg);
+}
+function visuHighlight(zoneIdx,on){
+  if(!VS.svg)return;
+  const g=VS.svg.querySelector(`g[data-idx="${zoneIdx}"]`);
+  if(g){
+    const c=g.querySelector("circle");
+    if(c){
+      if(on){
+        c._origSW=c.getAttribute("stroke-width");c.setAttribute("stroke-width",parseFloat(c._origSW||1)*2.2);
+        const rgb=(g.dataset.baseColor||"").match(/\d+/g)||[54,197,224];
+        c.setAttribute("fill",`rgb(${Math.round(rgb[0]*.2+8)},${Math.round(rgb[1]*.2+14)},${Math.round(rgb[2]*.2+26)})`);
+        c.setAttribute("fill-opacity","1");
+      }else{
+        if(c._origSW)c.setAttribute("stroke-width",c._origSW);
+        c.setAttribute("fill","#0a1422");c.setAttribute("fill-opacity","1");
+      }
+    }
+    const lbl=g.querySelector("[data-lbl]");if(lbl)lbl.setAttribute("opacity",on?"1":"0");
+    if(on){g._prevNext=g.nextSibling;g.parentNode.appendChild(g);}
+    else if(g._prevNext!==undefined){g.parentNode.insertBefore(g,g._prevNext);delete g._prevNext;}
+  }
+  const row=$("#visuProgBody")&&$("#visuProgBody").querySelector(`[data-zidx="${zoneIdx}"]`);
+  if(row)row.classList.toggle("visu-hover",on);
+}
+function renderVisuProg(cl){
+  const panel=$("#visuProg");const body=$("#visuProgBody");if(!panel||!body)return;
+  body.innerHTML="";let zoneIdx=0;
+  cl.steps.forEach((s,i)=>{
+    const d=document.createElement("div");d.className="prog-row";
+    const z=DB.zones.find(z=>z.id===s.zoneId);
+    if(s.type==="zone"){
+      const myIdx=zoneIdx++;d.dataset.zidx=myIdx;
+      d.innerHTML=`<div class="pi" style="border-color:var(--cyan)">${i+1}</div><span class="num"></span><div class="pt" style="color:var(--txt)">${z?esc(z.name):"?"}</div>`;
+      if(s.act)d.querySelector(".pt").innerHTML+=`<span style="color:var(--txt2);font-size:11px"> — ${esc(s.act)}</span>`;
+      d.addEventListener("mouseenter",()=>visuHighlight(myIdx,true));
+      d.addEventListener("mouseleave",()=>visuHighlight(myIdx,false));
+    }else{
+      d.innerHTML=`<div class="pi" style="border-color:var(--amber);color:var(--amber)">ℹ</div><span class="num"></span><div class="pt" style="color:var(--txt2);font-size:12px">${i+1}. ${esc(s.act||"")}</div>`;
+      const act=s.act||"",num=i+1;
+      d.addEventListener("mouseenter",()=>{if(VS.infoOv){VS.infoOv.textContent=num+". "+act;VS.infoOv.style.opacity="1";}});
+      d.addEventListener("mouseleave",()=>{if(VS.infoOv)VS.infoOv.style.opacity="0";});
+    }
+    body.appendChild(d);
+  });
+  panel.style.display="flex";
+}
+
+/* ===== TRAINING ===== */
+let TR=null;
+function renderTrainList(){const box=$("#trainList");box.innerHTML="";if(!DB.checklists.length){box.innerHTML='<p class="hint">Crée des checklists d\'abord.</p>';return;}DB.checklists.forEach(c=>{const d=document.createElement("div");d.className="list-item"+(TR&&TR.cl.id===c.id?" active":"");const col=c.color||"#3ad17a";d.innerHTML=`<span class="cl-dot" style="background:${col}"></span><span class="nm">${esc(c.name)}</span>`;d.onclick=()=>startTrain(c.id);box.appendChild(d);});}
+function renderTrainIdle(){if(TR)return;const stage=$("#trainStage");stage.innerHTML=idleGuide("🎯","Sélectionne une checklist à gauche pour démarrer l'entraînement");bindWelcome(stage);$("#trProg").style.display="none";}
+// Test de clic en pixels image : le rayon d'un cercle est en % de la largeur, comme à l'affichage
+// (sinon la zone cliquable serait écrasée verticalement sur une image non carrée)
+function zoneHit(z,x,y,cw,ch){
+  if(z.shape==="rect"){const hw=z.rw||z.r||DB.radius,hh=z.rh||z.r||DB.radius;return Math.abs(z.x-x)<=hw&&Math.abs(z.y-y)<=hh;}
+  const dx=(z.x-x)/100*cw,dy=(z.y-y)/100*ch;return Math.hypot(dx,dy)<=(z.r||DB.radius)/100*cw;
+}
+// Zones d'entraînement : non cliquables (pointer-events:none), le nom s'affiche au survol via mousemove
+function trainHover(ev){
+  if(!TR||!TR.img||!$("#optShowZones").checked)return;const ov=TR.zoomEl.querySelector(".tr-zones-ov");if(!ov)return;
+  const rect=TR.img.getBoundingClientRect();const x=((ev.clientX-rect.left)/rect.width)*100,y=((ev.clientY-rect.top)/rect.height)*100;
+  // la plus petite zone sous le curseur l'emporte (ex. un voyant dans le panneau annonciateur)
+  let best=null,bestA=Infinity;DB.zones.forEach(z=>{if(!zoneHit(z,x,y,TR.Z.cw,TR.Z.ch))return;const a=z.shape==="rect"?(z.rw||z.r)*(z.rh||z.r):(z.r*z.r);if(a<bestA){bestA=a;best=z;}});
+  ov.querySelectorAll(".zone").forEach(el=>el.classList.toggle("hover",!!best&&el.dataset.id===best.id));
+}
+function drawTrainZones(){if(!TR||!TR.zoomEl)return;let ov=TR.zoomEl.querySelector(".tr-zones-ov");if(!ov){ov=document.createElement("div");ov.className="zones-ov tr-zones-ov";ov.style.pointerEvents="none";TR.zoomEl.appendChild(ov);}ov.innerHTML="";if(!$("#optShowZones").checked){return;}DB.zones.forEach(z=>{const el=document.createElement("div");const isR=z.shape==="rect";el.className="zone";el.dataset.id=z.id;el.style.left=z.x+"%";el.style.top=z.y+"%";el.style.opacity="0.45";el.style.pointerEvents="none";el.style.borderRadius=isR?"4px":"50%";el.innerHTML=`<div class="zlabel" style="font-size:10px;opacity:.7">${esc(z.name)}</div>`;ov.appendChild(el);});sizeTrainZones();}
+function sizeTrainZones(){if(!TR||!TR.Z||!TR.zoomEl)return;const ov=TR.zoomEl.querySelector(".tr-zones-ov");if(!ov)return;const eff=TR.Z.eff();stackZones(ov,TR.Z.cw,TR.Z.ch);ov.querySelectorAll(".zone").forEach(el=>{const z=DB.zones.find(z=>z.id===el.dataset.id);if(!z)return;const isR=z.shape==="rect";const w=isR?((z.rw||z.r||DB.radius)/100)*TR.Z.cw*2:((z.r||DB.radius)/100)*TR.Z.cw*2;const h=isR?((z.rh||z.r||DB.radius)/100)*TR.Z.ch*2:w;el.style.width=w+"px";el.style.height=h+"px";el.style.borderRadius=isR?(4/eff)+"px":"50%";el.style.borderWidth=(2/eff)+"px";const lbl=el.querySelector(".zlabel");if(lbl){const inv=1/eff;lbl.style.fontSize=(10*inv)+"px";lbl.style.borderWidth=(1*inv)+"px";lbl.style.padding=(2*inv)+"px "+(6*inv)+"px";lbl.style.top=(-5*inv)+"px";}});}
+function renderAllLists(){renderClList();renderVisuList();renderTrainList();const dot=$("#clColorDot");if(dot&&curCl){const c=DB.checklists.find(c=>c.id===curCl);if(c)dot.style.background=c.color||"#3ad17a";}}
+(function(){
+  const presets=["#3ad17a","#f0c040","#ef5350"];
+  let activeDot=null;
+  function pop(){return document.getElementById("colorPop");}
+  window.openColorPicker=function(clId,dotEl){
+    const cl=DB.checklists.find(c=>c.id===clId);if(!cl)return;
+    activeDot=dotEl;const cur=cl.color||"#3ad17a";const p=pop();if(!p)return;
+    p.innerHTML='<div class="color-presets">'+presets.map(h=>'<div class="color-pre" style="background:'+h+';'+(cur===h?'border-color:rgba(255,255,255,.8)':'')+'" data-hex="'+h+'"></div>').join('')+'</div><div class="row"><input id="cpHex" value="'+cur+'" style="font-family:var(--mono);font-size:12px"><div id="cpPrev" style="width:24px;height:24px;border-radius:5px;flex-shrink:0;background:'+cur+';border:1px solid var(--line)"></div></div>';
+    p.querySelectorAll(".color-pre").forEach(el=>el.onclick=e=>{e.stopPropagation();setColor(cl,el.dataset.hex);});
+    const hi=document.getElementById("cpHex");
+    hi.oninput=e=>{const v=e.target.value.trim();if(/^#[0-9a-fA-F]{6}$/.test(v))setColor(cl,v);};
+    hi.onclick=e=>e.stopPropagation();
+    const r=dotEl.getBoundingClientRect();
+    p.style.top=Math.min(r.bottom+6,window.innerHeight-150)+"px";
+    p.style.left=Math.max(4,Math.min(r.left,window.innerWidth-196))+"px";
+    p.style.display="flex";
+  };
+  function setColor(cl,hex){cl.color=hex;save();renderAllLists();if(activeDot)activeDot.style.background=hex;const p=document.getElementById("cpPrev");if(p)p.style.background=hex;const h=document.getElementById("cpHex");if(h&&document.activeElement!==h)h.value=hex;}
+  document.addEventListener("click",()=>{const p=pop();if(p)p.style.display="none";});
+  document.addEventListener("click",e=>{const p=pop();if(p&&!p.contains(e.target))p.style.display="none";},{capture:true});
+})();
+$("#optProg").onchange=()=>{if(TR)$("#trProg").style.display=$("#optProg").checked?"flex":"none";};
+$("#optShowZones").onchange=()=>drawTrainZones();
+function startTrain(id){const cl=DB.checklists.find(c=>c.id===id);if(!cl)return;if(!DB.image){alert("Charge une image cockpit d'abord.");return;}if(!cl.steps.length){alert("Cette checklist n'a aucune étape.");return;}TR={cl,idx:0,errors:0,errOnStep:0,t0:null,timerId:null,Z:null,img:null,zoomEl:null};renderTrainList();buildTrainStage();}
+function buildTrainStage(){
+  const stage=$("#trainStage");stage.innerHTML="";
+  const tb=zoomToolbar(stage);
+  const zoomEl=document.createElement("div");zoomEl.className="zoom";
+  const img=document.createElement("img");img.src=DB.image;img.draggable=false;
+  zoomEl.appendChild(img);stage.appendChild(zoomEl);
+  const Z=makeZoomer(stage,zoomEl,img);TR.Z=Z;TR.img=img;TR.zoomEl=zoomEl;
+  Z.onapply=()=>sizeTrainZones();
+  img.onload=()=>{Z.init();drawTrainZones();};if(img.complete&&img.naturalWidth){Z.init();drawTrainZones();}
+  tb.onclick=e=>{const a=e.target.dataset.z;if(a==="in")Z.zoomBy(1.25);if(a==="out")Z.zoomBy(0.8);if(a==="fit")Z.fit();};
+  Z.attachPan(ev=>onTrainClick(ev));
+  zoomEl.addEventListener("mousemove",trainHover);
+  const flash=document.createElement("div");flash.id="trainFlash";stage.appendChild(flash);
+  $("#trProg").style.display=$("#optProg").checked?"flex":"none";
+  const tct=document.getElementById("trainClTitle");if(tct)tct.textContent=TR.cl.name;
+  if($("#optTimer").checked){TR.timerId=setInterval(()=>{const t=document.getElementById("trainTimer");if(t){const s=TR.t0?Math.floor((Date.now()-TR.t0)/1000):0;const m=Math.floor(s/60);t.textContent=(m<10?"0"+m:m)+":"+(s%60<10?"0"+(s%60):s%60);}},250);}
+  const tt=document.getElementById("trainTimer");if(tt)tt.textContent="00:00";
+  renderProg();
+}
+function curStep(){return TR.cl.steps[TR.idx];}
+function startTimer(){if(TR&&!TR.t0)TR.t0=Date.now();}
+function updateHud(){if(!TR)return;const s=curStep();const hud=$("#trHud");if(!hud)return;const secs=TR.t0?((Date.now()-TR.t0)/1000):0;const ttxt=$("#optTimer").checked?`<div class="hud-stat">⏱ <b>${secs.toFixed(0)}s</b></div>`:"";let prompt="";if(s&&s.type==="info")prompt=`<span class="hud-prompt info">ℹ ${esc(s.act||"(info)")}</span>`;else if(s)prompt=`<span class="hud-prompt">${esc(s.act||"")||"(clique la zone)"}</span>`;hud.innerHTML=`<div><div class="hud-step">ÉTAPE ${Math.min(TR.idx+1,TR.cl.steps.length)} / ${TR.cl.steps.length} — ${esc(TR.cl.name)}</div>${prompt}</div><div style="flex:1"></div>${ttxt}<div class="hud-stat">Erreurs <b>${TR.errors}</b></div>`;}
+function updateInfoBar(){}
+function renderProg(){const body=$("#progBody");if(!body)return;body.innerHTML="";TR.cl.steps.forEach((s,i)=>{let cls="prog-row",icon="",txt;if(i<TR.idx){cls+=" done";icon="✓";const zn=s.type==="zone"?DB.zones.find(z=>z.id===s.zoneId):null;txt=(zn?esc(zn.name)+" — ":"")+esc(s.act||"");}else if(i===TR.idx){cls+=" cur";icon="▸";txt="...";}else{txt="• • •";}const d=document.createElement("div");d.className=cls;d.style.cssText="cursor:pointer";d.title="Aller à cette étape";d.innerHTML=`<div class="pi">${icon}</div><span class="num">${i+1}</span><div class="pt">${txt}</div>`;d.addEventListener("mouseenter",()=>{if(i!==TR.idx)d.style.background="rgba(255,255,255,.04)";});d.addEventListener("mouseleave",()=>d.style.background="");d.onclick=()=>{if(i===TR.idx)return;TR.idx=i;TR.errOnStep=0;clearPulse();const fl=document.getElementById("trainFlash");if(fl)fl.style.opacity="0";updateInfoBar();renderProg();};body.appendChild(d);if(i===TR.idx)setTimeout(()=>d.scrollIntoView({block:"nearest"}),0);});}
+function onTrainClick(ev){if(!TR)return;const s=curStep();if(!s||s.type==="info")return;startTimer();const rect=TR.img.getBoundingClientRect();const x=((ev.clientX-rect.left)/rect.width)*100,y=((ev.clientY-rect.top)/rect.height)*100;
+  const hitZone=z=>zoneHit(z,x,y,TR.Z.cw,TR.Z.ch);
+  const correct=DB.zones.some(z=>z.id===s.zoneId&&hitZone(z));
+  ripple(ev.clientX,ev.clientY,correct?"ok":"bad");if(correct){advance();}else{TR.errors++;TR.errOnStep++;if($("#optHint").checked&&TR.errOnStep>=2)showPulse(s.zoneId);}}
+function showPulse(zoneId){const z=DB.zones.find(z=>z.id===zoneId);if(!z||!TR.zoomEl)return;const old=TR.zoomEl.querySelector(".train-pulse");if(old)old.remove();const isR=z.shape==="rect";const w=isR?((z.rw||z.r||DB.radius)/100)*TR.Z.cw*2:((z.r||DB.radius)/100)*TR.Z.cw*2;const h=isR?((z.rh||z.r||DB.radius)/100)*TR.Z.ch*2:w;const eff=TR.Z.eff();const p=document.createElement("div");p.className="train-pulse";p.style.left=z.x+"%";p.style.top=z.y+"%";p.style.width=w+"px";p.style.height=h+"px";p.style.borderRadius=isR?(4/eff)+"px":"50%";p.style.borderWidth=(4/eff)+"px";TR.zoomEl.appendChild(p);}
+function clearPulse(){if(TR&&TR.zoomEl){const p=TR.zoomEl.querySelector(".train-pulse");if(p)p.remove();}}
+function ripple(cx,cy,kind){const stage=$("#trainStage");const r=document.createElement("div");r.className="ripple "+kind;const wr=stage.getBoundingClientRect();r.style.left=(cx-wr.left)+"px";r.style.top=(cy-wr.top)+"px";stage.appendChild(r);setTimeout(()=>r.remove(),600);}
+function showTrainFlash(s){if(!$("#optFlash").checked)return;const fl=document.getElementById("trainFlash");if(!fl)return;const zn=s.type==="zone"?DB.zones.find(z=>z.id===s.zoneId):null;fl.textContent=(zn?zn.name+" — ":"")+(s.act||"");fl.style.opacity="1";clearTimeout(fl._t);fl._t=setTimeout(()=>fl.style.opacity="0",2000);}
+function advance(){clearPulse();const done=curStep();TR.errOnStep=0;TR.idx++;showTrainFlash(done);if(TR.idx>=TR.cl.steps.length){setTimeout(finishTrain,1600);return;}renderProg();}
+function finishTrain(){if(TR.timerId)clearInterval(TR.timerId);renderProg();const secs=TR.t0?((Date.now()-TR.t0)/1000).toFixed(0):0;const total=TR.cl.steps.length;const acc=total>0?Math.round(total/(total+TR.errors)*100):100;const stage=$("#trainStage");const ov=document.createElement("div");ov.className="overlay";const curIdx=DB.checklists.findIndex(c=>c.id===TR.cl.id);const nextCl=DB.checklists[curIdx+1];const nextBtn=nextCl?`<button id="ovNext">Suivante : ${esc(nextCl.name)} →</button>`:"";ov.innerHTML=`<div class="card"><h2>✓ ${esc(TR.cl.name)} — terminée</h2><div class="bigstat"><div><div class="v">${secs}s</div><div class="l">Temps</div></div><div><div class="v">${TR.errors}</div><div class="l">Erreurs</div></div><div><div class="v">${acc}%</div><div class="l">Précision</div></div></div><div class="row" style="justify-content:center;flex-wrap:wrap;gap:8px"><button class="primary" id="ovRetry">↺ Recommencer</button>${nextBtn}<button id="ovBack">Autre checklist</button></div></div>`;stage.appendChild(ov);$("#ovRetry").onclick=()=>{const id=TR.cl.id;stopTrain();startTrain(id);};if(nextCl)setTimeout(()=>{const btn=$("#ovNext");if(btn)btn.onclick=()=>{stopTrain();startTrain(nextCl.id);};},0);$("#ovBack").onclick=()=>{stopTrain();renderTrainList();renderTrainIdle();};}
+function stopTrain(){if(TR&&TR.timerId)clearInterval(TR.timerId);TR=null;}
+window.addEventListener("keydown",e=>{if(!TR)return;if(e.code==="Space"){const s=curStep();if(s&&s.type==="info"){e.preventDefault();startTimer();advance();}}});
+
+function renderAll(){$("#radius").value=DB.radius;$("#radiusVal").textContent=DB.radius+"%";renderCockpit();renderClList();renderClEditor();renderVisuList();renderVisuIdle();renderTrainList();renderTrainIdle();}
+loadOnlineProfiles();
+load();DB.zones.forEach(z=>{if(z.r==null)z.r=DB.radius;});$("#projName").value=DB.name||"Mon profil";renderAll();
+window.addEventListener("resize",()=>{if($("#view-cockpit").classList.contains("active")&&CK.Z)CK.Z.fit();if($("#view-visu").classList.contains("active")&&VS.Z)VS.Z.fit();if($("#view-train").classList.contains("active")&&TR&&TR.Z)TR.Z.fit();});
+</script>
+<div id="colorPop"></div>
+</body>
+</html>
